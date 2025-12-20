@@ -690,7 +690,8 @@ async function displayCurrentFlight() {
 
     // Show logo using our cache/proxy
     if (elements.airlineLogo) {
-        elements.airlineLogo.src = `/api/logo/${airlineCode}`;
+        // Airline Logo with cache bust
+        elements.airlineLogo.src = `/api/logo/${airlineCode}?v=${Date.now()}`;
         elements.airlineLogo.style.display = 'block';
         elements.airlineLogo.classList.remove('hidden');
         // Fallback if load fails (handled by onerror in HTML, but we can ensure it)
