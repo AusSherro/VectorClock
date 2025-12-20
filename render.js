@@ -18,7 +18,7 @@ const CONFIG = {
     },
     OUTPUT_DIR: path.join(__dirname, 'screenshots'),
     OUTPUT_FILE: 'eink_frame.png',
-    REFRESH_INTERVAL_MS: 60000, // 1 minute
+    REFRESH_INTERVAL_MS: 10000, // 10 seconds
     GRAYSCALE: true
 };
 
@@ -72,8 +72,8 @@ async function captureFrame(page) {
     // Clean up DOM before capture
     await cleanupDOM(page);
 
-    // Wait for any animations to settle
-    await page.waitForTimeout(500);
+    // Wait for data to fetch (API calls can take 1-3s)
+    await page.waitForTimeout(5000);
 
     // Capture screenshot
     await page.screenshot({

@@ -1,8 +1,33 @@
+# Dependencies
 node_modules/
+
+# Configuration (contains API keys)
 config.json
+
+# Runtime files
 trigger.txt
+flight_stats.json
+
+# Generated directories
 screenshots/
 logos/
+
+# Database files (large, regenerate from CSV)
+aircraft.db
+*.db
+
+# Source CSV (too large for git - 31MB)
+aircraft-database-complete-2025-08.csv
+*.csv
+
+# Environment
 .env
 .DS_Store
+
+# Logs
 npm-debug.log
+*.log
+
+# IDE
+.vscode/
+.idea/

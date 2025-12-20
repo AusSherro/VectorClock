@@ -19,8 +19,26 @@
         <!-- Unified display box -->
         <main id="main">
             <div id="display-box">
-                <!-- Settings button in top right -->
-                <button id="settings-btn" aria-label="Settings">⚙</button>
+                <!-- Top Header: Weather & Bin -->
+                <div id="info-header">
+                    <div id="weather-container">
+                        <span id="weather-icon"></span>
+                        <span id="weather-temp"></span>
+                        <span id="weather-rain" class="weather-stat"></span>
+                        <span id="weather-aqi" class="aqi-badge"></span>
+                    </div>
+
+                    <div id="bin-container" class="hidden">
+                        <!-- Bin Icon will be injected here -->
+                    </div>
+                </div>
+
+                <!-- Satellite Alert Banner -->
+                <div id="satellite-banner" class="hidden">
+                    <span class="sat-icon">🛰</span>
+                    <span id="sat-name">ISS</span>
+                    <span id="sat-vis">Visual Pass</span>
+                </div>
 
                 <!-- Top: Carrier info (when flying) -->
                 <div id="top-info" class="hidden">
@@ -58,6 +76,12 @@
                 <!-- No flights message -->
                 <div id="no-flights" class="hidden">
                     <span>No aircraft overhead</span>
+                </div>
+
+                <!-- Year Progress Bar -->
+                <div id="year-progress-container">
+                    <div id="year-progress-bar"></div>
+                    <span id="year-progress-text"></span>
                 </div>
             </div>
 

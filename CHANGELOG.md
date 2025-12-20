@@ -1,23 +1,53 @@
 # Changelog
 
-## [1.0.0] - E-Ink & Stability Update
+## [1.2.0] - 2025-12-21 - AirLabs Integration & Stats Dashboard
 
 ### Added
-- **E-Ink Support**: Optimized `index.html` and `styles.css` for 800x480 resolution.
-  - Added strict monochrome styling.
-  - Hidden status bars and non-essential UI elements in `eink-mode`.
-- **Configuration Wizard**: New `npm run setup` script for easy location and API configuration.
-- **Instant Updates**: Implemented a file-watcher system (`trigger.txt`) to immediately refresh the E-Ink display when flights appear or disappear.
-- **Airline Logos**: Backend now proxies and caches logos from FlightRadar24 (`/api/logo/:icao`), converting them to monochrome-friendly formats/fallbacks.
-- **Renderer**: `render.js` now uses Puppeteer to capture `screenshots/eink_frame.png` for display drivers.
-
-### Fixed
-- **Weather API**: Switched from `node-fetch` to `axios` and forced IPv4 to resolve timeouts and DNS issues. Added `User-Agent` headers.
-- **UI Cleanliness**: Fixed issue where "Fetching..." and "Scanning..." text persisted on screen. Now hidden via global CSS rules.
-- **Stability**: Added automatic server restart handling in renderer and robust error logging.
+- **AirLabs API Integration**: Free tier (1,000 calls/month) for route data
+  - Query by flight_icao (callsign), returns origin/destination/aircraft
+  - Perfect for personal use desk clocks
+- **3-Way API Mode**: Free (AirLabs) / Paid (AeroDataBox) / Off
+  - Settings panel with radio buttons
+  - Quota display shows usage (X/1000)
+- **Rare Aircraft Detection**: 45+ types including:
+  - Widebodies: A380, A350, 787, 777, 747
+  - RAAF Military: C-17, KC-30A, E-7A Wedgetail, P-8A Poseidon, F-35
+  - Classics: A340, MD-11, DC-10, Concorde
+  - Private jets: G650, G700, Global Express
+- **First-Time Model Detection**: Shows `NEW★` when a new aircraft type flies over
+- **Enhanced Stats Dashboard** (`/stats.html`):
+  - Rare Sightings count and table
+  - Unique Models with first-seen dates
+  - Countries count
+  - Aircraft Model Timeline
 
 ### Changed
-- **Project Structure**: 
-  - `index.html` is now the E-Ink dedicated view.
-  - Original full-color view renamed to `webview.html` (accessible via `iframe` or direct load if needed).
-- **Dependencies**: Added `axios` and `puppeteer`.
+- Expanded ICAO_TO_SLUG mapping for Australian airlines (VOZ, VAU, JST, etc.)
+- recordFlightSighting now sends typecode, country, distance, altitude
+
+---
+
+## [1.1.0] - 2025-12-21 - Local Aircraft Database
+
+### Added
+- **Local SQLite Database**: 616k aircraft records for instant lookups
+- **Database Converter**: `csv_to_db.py` Python script
+- **New Endpoint**: `GET /api/aircraft-meta/:icao24`
+
+### Changed
+- Aircraft display shows "Manufacturer Model" (bold styling)
+- Dependencies: Added `better-sqlite3`
+
+---
+
+## [1.0.0] - E-Ink & Stability Release
+
+### Added
+- E-Ink optimized UI (800x480 monochrome)
+- Configuration wizard (`npm run setup`)
+- Airline logo proxying and caching
+- Puppeteer renderer for E-Ink screenshots
+
+### Fixed
+- Weather API IPv4/timeout issues
+- UI artifact cleanup

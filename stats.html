@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flight Stats Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #eee;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2rem;
+            color: #00d4ff;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto 30px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .stat-card h2 {
+            font-size: 0.9rem;
+            color: #888;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #00d4ff;
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: #aaa;
+            margin-top: 5px;
+        }
+
+        .record-card {
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.1), rgba(0, 212, 255, 0.02));
+            border: 1px solid rgba(0, 212, 255, 0.3);
+        }
+
+        .record-callsign {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .record-value {
+            font-size: 1.8rem;
+            color: #00d4ff;
+            margin: 10px 0;
+        }
+
+        .record-meta {
+            font-size: 0.8rem;
+            color: #888;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 30px;
+            max-width: 1400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        th,
+        td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        th {
+            background: rgba(0, 212, 255, 0.1);
+            color: #00d4ff;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+        }
+
+        tr:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .callsign {
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .count-badge {
+            background: #00d4ff;
+            color: #000;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 0.85rem;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
+
+        .refresh-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #00d4ff;
+            color: #000;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-family: inherit;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .refresh-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .last-updated {
+            text-align: center;
+            color: #666;
+            font-size: 0.8rem;
+            margin-top: 20px;
+        }
+
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            .stat-value {
+                font-size: 2rem;
+            }
+
+            th,
+            td {
+                padding: 8px 10px;
+                font-size: 0.85rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <h1>✈️ Flight Stats Dashboard</h1>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <h2>Total Sightings</h2>
+            <div class="stat-value" id="total-sightings">-</div>
+            <div class="stat-label">flights logged</div>
+        </div>
+
+        <div class="stat-card">
+            <h2>Unique Aircraft</h2>
+            <div class="stat-value" id="unique-flights">-</div>
+            <div class="stat-label">different callsigns</div>
+        </div>
+
+        <div class="stat-card record-card">
+            <h2>🏆 Most Seen Flight</h2>
+            <div class="record-callsign" id="most-seen-callsign">-</div>
+            <div class="record-value" id="most-seen-count">-</div>
+            <div class="record-meta" id="most-seen-meta">-</div>
+        </div>
+
+        <div class="stat-card record-card">
+            <h2>📍 Closest Flyby</h2>
+            <div class="record-callsign" id="closest-callsign">-</div>
+            <div class="record-value" id="closest-distance">-</div>
+            <div class="record-meta" id="closest-meta">-</div>
+        </div>
+
+        <div class="stat-card record-card">
+            <h2>🔝 Highest Altitude</h2>
+            <div class="record-callsign" id="highest-callsign">-</div>
+            <div class="record-value" id="highest-altitude">-</div>
+            <div class="record-meta" id="highest-meta">-</div>
+        </div>
+
+        <div class="stat-card"
+            style="border-color: rgba(255, 215, 0, 0.3); background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(255, 215, 0, 0.02));">
+            <h2>⭐ Rare Sightings</h2>
+            <div class="stat-value" id="rare-count" style="color: #FFD700;">-</div>
+            <div class="stat-label">special aircraft spotted</div>
+        </div>
+
+        <div class="stat-card">
+            <h2>🛩️ Unique Models</h2>
+            <div class="stat-value" id="unique-models">-</div>
+            <div class="stat-label">different aircraft types</div>
+        </div>
+
+        <div class="stat-card">
+            <h2>🌏 Countries</h2>
+            <div class="stat-value" id="unique-countries">-</div>
+            <div class="stat-label">origin countries seen</div>
+        </div>
+    </div>
+
+    <!-- Rare Sightings Section -->
+    <h2 style="text-align: center; color: #FFD700; margin: 40px 0 10px;">⭐ Rare Aircraft Sightings</h2>
+    <table id="rare-table">
+        <thead>
+            <tr>
+                <th>Callsign</th>
+                <th>Aircraft Type</th>
+                <th>Carrier</th>
+                <th>Route</th>
+                <th>When</th>
+            </tr>
+        </thead>
+        <tbody id="rare-body">
+            <tr>
+                <td colspan="5" class="loading">No rare aircraft spotted yet...</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- First-Time Models Section -->
+    <h2 style="text-align: center; color: #00ff88; margin: 40px 0 10px;">🆕 Aircraft Model Timeline</h2>
+    <p style="text-align: center; color: #666; margin-bottom: 15px; font-size: 0.85rem;">When you first saw each
+        aircraft type</p>
+    <table id="models-table">
+        <thead>
+            <tr>
+                <th>Aircraft Model</th>
+                <th>Type Code</th>
+                <th>First Seen</th>
+                <th>Total Sightings</th>
+            </tr>
+        </thead>
+        <tbody id="models-body">
+            <tr>
+                <td colspan="4" class="loading">Loading model data...</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2 style="text-align: center; color: #888; margin: 30px 0 10px;">Top 10 Most Seen</h2>
+    <table id="top-flights-table">
+        <thead>
+            <tr>
+                <th>Rank</th>
+                <th>Callsign</th>
+                <th>Carrier</th>
+                <th>Route</th>
+                <th>Aircraft</th>
+                <th>Count</th>
+            </tr>
+        </thead>
+        <tbody id="top-flights-body">
+            <tr>
+                <td colspan="6" class="loading">Loading stats...</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2 style="text-align: center; color: #888; margin: 40px 0 10px;">Recent Sightings</h2>
+    <table id="recent-table">
+        <thead>
+            <tr>
+                <th>Callsign</th>
+                <th>Carrier</th>
+                <th>Distance</th>
+                <th>Altitude</th>
+                <th>Last Seen</th>
+            </tr>
+        </thead>
+        <tbody id="recent-body">
+            <tr>
+                <td colspan="5" class="loading">Loading stats...</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="last-updated" id="last-updated">-</div>
+
+    <button class="refresh-btn" onclick="loadStats()">↻ Refresh</button>
+
+    <script>
+        async function loadStats() {
+            try {
+                const res = await fetch('/api/stats');
+                const data = await res.json();
+
+                // Update summary cards
+                document.getElementById('total-sightings').textContent = data.totalSightings || 0;
+                document.getElementById('unique-flights').textContent = data.uniqueFlights || 0;
+
+                // Most seen
+                if (data.topByCount && data.topByCount.length > 0) {
+                    const [callsign, info] = data.topByCount[0];
+                    document.getElementById('most-seen-callsign').textContent = callsign;
+                    document.getElementById('most-seen-count').textContent = info.count + ' times';
+                    document.getElementById('most-seen-meta').textContent = info.carrier || info.route || '-';
+                }
+
+                // Closest
+                if (data.closestFlyby) {
+                    const [callsign, info] = data.closestFlyby;
+                    document.getElementById('closest-callsign').textContent = callsign;
+                    document.getElementById('closest-distance').textContent =
+                        info.minDistance === Infinity ? '-' : info.minDistance.toFixed(1) + ' km';
+                    document.getElementById('closest-meta').textContent = info.carrier || '-';
+                }
+
+                // Highest
+                if (data.highestAltitude) {
+                    const [callsign, info] = data.highestAltitude;
+                    document.getElementById('highest-callsign').textContent = callsign;
+                    document.getElementById('highest-altitude').textContent =
+                        (info.maxAltitude || 0).toLocaleString() + ' m';
+                    document.getElementById('highest-meta').textContent = info.carrier || '-';
+                }
+
+                // Top 10 table
+                const topBody = document.getElementById('top-flights-body');
+                if (data.topByCount && data.topByCount.length > 0) {
+                    topBody.innerHTML = data.topByCount.map(([callsign, info], i) => `
+                        <tr>
+                            <td>#${i + 1}</td>
+                            <td class="callsign">${callsign}</td>
+                            <td>${info.carrier || '-'}</td>
+                            <td>${info.route || '-'}</td>
+                            <td>${info.aircraft || '-'}</td>
+                            <td><span class="count-badge">${info.count}</span></td>
+                        </tr>
+                    `).join('');
+                } else {
+                    topBody.innerHTML = '<tr><td colspan="6" class="loading">No flights recorded yet</td></tr>';
+                }
+
+                // Recent sightings table
+                const recentBody = document.getElementById('recent-body');
+                if (data.recentSightings && data.recentSightings.length > 0) {
+                    recentBody.innerHTML = data.recentSightings.map(([callsign, info]) => `
+                        <tr>
+                            <td class="callsign">${callsign}</td>
+                            <td>${info.carrier || '-'}</td>
+                            <td>${info.minDistance === Infinity ? '-' : info.minDistance.toFixed(1) + ' km'}</td>
+                            <td>${(info.maxAltitude || 0).toLocaleString()} m</td>
+                            <td>${new Date(info.lastSeen).toLocaleString()}</td>
+                        </tr>
+                    `).join('');
+                } else {
+                    recentBody.innerHTML = '<tr><td colspan="5" class="loading">No flights recorded yet</td></tr>';
+                }
+
+                // ========== NEW STATS ==========
+
+                // Rare count
+                document.getElementById('rare-count').textContent = data.rareCount || 0;
+
+                // Unique models
+                document.getElementById('unique-models').textContent = data.uniqueModels || 0;
+
+                // Countries
+                document.getElementById('unique-countries').textContent = data.uniqueCountries || 0;
+
+                // Rare sightings table
+                const rareBody = document.getElementById('rare-body');
+                if (data.rareSightings && data.rareSightings.length > 0) {
+                    rareBody.innerHTML = data.rareSightings.map(([callsign, info]) => `
+                        <tr style="background: rgba(255, 215, 0, 0.05);">
+                            <td class="callsign">⭐ ${callsign}</td>
+                            <td>${info.aircraft || info.typecode || '-'}</td>
+                            <td>${info.carrier || '-'}</td>
+                            <td>${info.route || '-'}</td>
+                            <td>${new Date(info.lastSeen).toLocaleString()}</td>
+                        </tr>
+                    `).join('');
+                } else {
+                    rareBody.innerHTML = '<tr><td colspan="5" class="loading">No rare aircraft spotted yet - keep watching! 🛫</td></tr>';
+                }
+
+                // Models timeline table
+                const modelsBody = document.getElementById('models-body');
+                if (data.modelsList && data.modelsList.length > 0) {
+                    modelsBody.innerHTML = data.modelsList.map(([typeCode, info]) => `
+                        <tr>
+                            <td>${info.name || typeCode}</td>
+                            <td><span style="background: #333; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem;">${typeCode}</span></td>
+                            <td style="color: #00ff88;">${new Date(info.firstSeen).toLocaleDateString()}</td>
+                            <td><span class="count-badge">${info.count}</span></td>
+                        </tr>
+                    `).join('');
+                } else {
+                    modelsBody.innerHTML = '<tr><td colspan="4" class="loading">No aircraft models recorded yet</td></tr>';
+                }
+
+                // Last updated
+                document.getElementById('last-updated').textContent =
+                    'Last updated: ' + (data.lastUpdated ? new Date(data.lastUpdated).toLocaleString() : 'Never');
+
+            } catch (e) {
+                console.error('Failed to load stats:', e);
+            }
+        }
+
+        // Load on page load
+        loadStats();
+
+        // Auto-refresh every 30 seconds
+        setInterval(loadStats, 30000);
+    </script>
+</body>
+
+</html>
