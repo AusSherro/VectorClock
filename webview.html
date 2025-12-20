@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flight Tracker Clock</title>
+    <meta name="description" content="A desk clock that displays real-time flight information for aircraft overhead">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;500;600&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <div id="app">
+        <!-- Unified display box -->
+        <main id="main">
+            <div id="display-box">
+                <!-- Settings button in top right -->
+                <button id="settings-btn" aria-label="Settings">⚙</button>
+
+                <!-- Top: Carrier info (when flying) -->
+                <div id="top-info" class="hidden">
+                    <span id="callsign"></span>
+                    <span id="carrier"></span>
+                    <span id="route"></span>
+                </div>
+
+                <!-- Center: Clock -->
+                <div id="clock-center">
+                    <div id="time"></div>
+                    <div id="date"></div>
+                </div>
+
+                <!-- Bottom: Flight stats (when flying) -->
+                <div id="bottom-stats" class="hidden">
+                    <div class="stat">
+                        <span class="stat-value" id="stat-altitude"></span>
+                        <span class="stat-label">ALT</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-value" id="stat-speed"></span>
+                        <span class="stat-label">SPD</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-value" id="stat-heading"></span>
+                        <span class="stat-label">HDG</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-value" id="stat-distance"></span>
+                        <span class="stat-label">DIST</span>
+                    </div>
+                </div>
+
+                <!-- No flights message -->
+                <div id="no-flights" class="hidden">
+                    <span>No aircraft overhead</span>
+                </div>
+            </div>
+
+            <!-- Status bar below box -->
+            <div id="status-bar">
+                <span id="status-icon">◯</span>
+                <span id="status-text">Detecting location...</span>
+            </div>
+        </main>
+
+        <!-- Settings modal -->
+        <div id="settings-modal" class="hidden">
+            <div id="settings-content">
+                <div id="settings-header">
+                    <h2>Settings</h2>
+                    <button id="settings-close" aria-label="Close">✕</button>
+                </div>
+
+                <div class="setting-group">
+                    <label class="setting-label">Search Radius (km)</label>
+                    <div class="radius-input">
+                        <input type="number" id="radius-input" min="1" max="100" value="25" step="1">
+                        <span class="radius-unit">km</span>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <label class="checkbox-option">
+                        <input type="checkbox" id="enable-route-api" checked>
+                        <span>Enable route lookup (uses API)</span>
+                    </label>
+                </div>
+
+                <div class="setting-group">
+                    <label class="setting-label">Location</label>
+                    <div id="location-display">
+                        <span id="current-location">Auto-detecting...</span>
+                        <button id="refresh-location" aria-label="Refresh location">↻</button>
+                    </div>
+                    <div id="manual-location">
+                        <label class="checkbox-option">
+                            <input type="checkbox" id="use-manual-location">
+                            <span>Use manual coordinates</span>
+                        </label>
+                        <div id="manual-coords" class="hidden">
+                            <div class="coord-input">
+                                <label for="manual-lat">Latitude</label>
+                                <input type="number" id="manual-lat" step="0.0001" placeholder="-33.8688">
+                            </div>
+                            <div class="coord-input">
+                                <label for="manual-lon">Longitude</label>
+                                <input type="number" id="manual-lon" step="0.0001" placeholder="151.2093">
+                            </div>
+                            <button id="save-manual-coords">Save Coordinates</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <label class="setting-label">Refresh Interval</label>
+                    <div class="radio-group">
+                        <label class="radio-option">
+                            <input type="radio" name="interval" value="10" id="interval-10">
+                            <span>10 sec</span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="interval" value="30" id="interval-30" checked>
+                            <span>30 sec</span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="interval" value="60" id="interval-60">
+                            <span>60 sec</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>

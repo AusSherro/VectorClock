@@ -1,0 +1,8 @@
+node_modules/
+config.json
+trigger.txt
+screenshots/
+logos/
+.env
+.DS_Store
+npm-debug.log
