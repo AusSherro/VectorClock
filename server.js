@@ -405,9 +405,18 @@ app.get('/api/logo/:icao', async (req, res) => {
     }
 });
 
+// Flight Info cache (24 hour expiry)
+const FLIGHT_CACHE = {};
+const FLIGHT_CACHE_MS = 24 * 60 * 60 * 1000;
+
 // Flight Info Proxy (Route & Extra Data)
 app.get('/api/flight-info/:callsign', async (req, res) => {
-    const callsign = req.params.callsign;
+    const callsign = req.params.callsign.toUpperCase();
+
+    // Check cache
+    if (FLIGHT_CACHE[callsign] && FLIGHT_CACHE[callsign].expiry > Date.now()) {
+        return res.json(FLIGHT_CACHE[callsign].data);
+    }
 
     if (!RAPIDAPI_KEY) {
         return res.status(501).json({ error: 'No RapidAPI Key configured' });
@@ -428,12 +437,20 @@ app.get('/api/flight-info/:callsign', async (req, res) => {
         const data = response.data[0]; // AeroDataBox returns array of recent flights
         if (!data) return res.status(404).json({ error: 'Not found' });
 
-        res.json({
+        const info = {
             origin: data.departure?.airport?.name || data.departure?.airport?.iata || 'Unknown',
             destination: data.arrival?.airport?.name || data.arrival?.airport?.iata || 'Unknown',
             airline: data.airline?.name,
             logoUrl: data.airline?.logo // Often widely accessible
-        });
+        };
+
+        // Save to cache
+        FLIGHT_CACHE[callsign] = {
+            data: info,
+            expiry: Date.now() + FLIGHT_CACHE_MS
+        };
+
+        res.json(info);
 
     } catch (e) {
         console.error(`Flight info fetch failed for ${callsign}:`, e.message);
