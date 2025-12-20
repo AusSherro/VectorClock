@@ -681,18 +681,20 @@ async function displayCurrentFlight() {
     // Update top info (callsign + carrier)
     elements.callsign.textContent = flight.callsign;
     elements.carrier.textContent = carrier;
-    elements.route.textContent = ''; // Clear while loading
+
+    // Reset route display and fetch extended info
+    elements.route.textContent = '';
+    fetchExtendedInfo(flight.callsign);
+
     elements.topInfo.classList.remove('hidden');
 
-    // Update Logo (E-Ink only)
+    // Show logo using our cache/proxy
     if (elements.airlineLogo) {
         elements.airlineLogo.src = `/api/logo/${airlineCode}`;
         elements.airlineLogo.style.display = 'block';
         elements.airlineLogo.classList.remove('hidden');
-        // Handle load error to hide broken image
-        elements.airlineLogo.onerror = () => {
-            elements.airlineLogo.style.display = 'none';
-        };
+        // Fallback if load fails (handled by onerror in HTML, but we can ensure it)
+        elements.airlineLogo.onerror = () => { elements.airlineLogo.style.display = 'none'; };
     }
 
     // Update bottom stats
@@ -773,6 +775,24 @@ function updateStatus(text, active) {
     } else {
         elements.statusIcon.textContent = '◯';
         elements.statusIcon.classList.remove('active');
+    }
+}
+
+
+
+async function fetchExtendedInfo(callsign) {
+    // Only attempt if we haven't checked this callsign recently? 
+    // For now, simpler is better.
+    try {
+        const response = await fetch(`/api/flight-info/${callsign}`);
+        if (response.ok) {
+            const data = await response.json();
+            if (data.origin && data.destination) {
+                elements.route.textContent = `${data.origin} → ${data.destination}`;
+            }
+        }
+    } catch (e) {
+        console.log('Route fetch failed', e);
     }
 }
 

@@ -48,6 +48,14 @@ npm run setup
 - **Location**: Auto-detect via IP or enter coordinates manually.
 - **OpenSky API**: Optional. Add your credentials to increase rate limits and see more flights.
 
+### Custom Logos
+If a logo fails to download, you can manually add a PNG file to the `logos/` directory:
+- Filename: `<ICAO>.png` (e.g., `QFA.png`)
+- The server will serve this file instead of fetching.
+
+### Route Data (Optional)
+To display flight origin/destination, get a free API Key from [AeroDataBox on RapidAPI](https://rapidapi.com/aedbx-aedbx/api/aerodatabox) and run `npm run setup` to configure it.
+
 ## Usage
 
 ### On Raspberry Pi (E-Ink Mode)

@@ -44,6 +44,8 @@ const LOCATION = {
     name: userConfig.locationName || 'Marrickville, NSW'
 };
 
+const RAPIDAPI_KEY = userConfig.rapidApiKey || null;
+
 // ISS visibility threshold in km
 const ISS_PROXIMITY_KM = 500;
 
@@ -325,6 +327,42 @@ app.get('/api/logo/:icao', async (req, res) => {
         const fallbackSvg = generateLogoFallback(icao);
         res.setHeader('Content-Type', 'image/svg+xml');
         res.send(fallbackSvg);
+    }
+});
+
+// Flight Info Proxy (Route & Extra Data)
+app.get('/api/flight-info/:callsign', async (req, res) => {
+    const callsign = req.params.callsign;
+
+    if (!RAPIDAPI_KEY) {
+        return res.status(501).json({ error: 'No RapidAPI Key configured' });
+    }
+
+    try {
+        console.log(`Fetching flight info for ${callsign}...`);
+        const url = `https://aerodatabox.p.rapidapi.com/flights/callsign/${callsign}`;
+        const response = await axios.get(url, {
+            headers: {
+                'X-RapidAPI-Key': RAPIDAPI_KEY,
+                'X-RapidAPI-Host': 'aerodatabox.p.rapidapi.com'
+            },
+            params: { withImage: true, withLocation: false },
+            timeout: 5000
+        });
+
+        const data = response.data[0]; // AeroDataBox returns array of recent flights
+        if (!data) return res.status(404).json({ error: 'Not found' });
+
+        res.json({
+            origin: data.departure?.airport?.name || data.departure?.airport?.iata || 'Unknown',
+            destination: data.arrival?.airport?.name || data.arrival?.airport?.iata || 'Unknown',
+            airline: data.airline?.name,
+            logoUrl: data.airline?.logo // Often widely accessible
+        });
+
+    } catch (e) {
+        console.error(`Flight info fetch failed for ${callsign}:`, e.message);
+        res.status(500).json({ error: e.message });
     }
 });
 

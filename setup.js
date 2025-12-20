@@ -78,6 +78,11 @@ async function handleAPI() {
     console.log('Use this for better flight data rates. Leave empty to clear.');
     config.clientId = await ask(`Client ID [${config.clientId ? '***' : 'none'}]: `) || config.clientId;
     config.clientSecret = await ask(`Client Secret [${config.clientSecret ? '***' : 'none'}]: `) || config.clientSecret;
+
+    console.log('\n--- RapidAPI (Optional) ---');
+    console.log('Required for Route/Destination data and better Logos (AeroDataBox).');
+    config.rapidApiKey = await ask(`RapidAPI Key [${config.rapidApiKey ? '***' : 'none'}]: `) || config.rapidApiKey;
+
     console.log('✅ API Credentials updated.');
 }
 
