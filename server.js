@@ -324,13 +324,15 @@ app.get('/api/logo/:icao', async (req, res) => {
     // 0. Check Local Assets (Best Quality)
     if (ICAO_TO_SLUG[icao]) {
         const slug = ICAO_TO_SLUG[icao];
-        // Try logo-mono.svg, then logo.svg, then icon.svg
-        const candidates = ['logo-mono.svg', 'logo.svg', 'icon-mono.svg', 'icon.svg'];
+        // Try icon-mono.svg/icon.svg first (as requested), then fall back to logos
+        const candidates = ['icon-mono.svg', 'icon.svg', 'logo-mono.svg', 'logo.svg'];
 
         for (const file of candidates) {
             const assetPath = path.join(ASSETS_DIR, slug, file);
+            // console.log(`Debug: Checking ${assetPath}`);
             if (fs.existsSync(assetPath)) {
                 try {
+                    console.log(`✓ Found local asset for ${icao} (${slug}/${file})`);
                     let svgContent = fs.readFileSync(assetPath, 'utf8');
                     // Force black fill
                     svgContent = svgContent.replace(/fill="[^"]*"/g, 'fill="#000000"');
@@ -347,6 +349,9 @@ app.get('/api/logo/:icao', async (req, res) => {
                 }
             }
         }
+        console.log(`x Local asset missing for ${icao} (slug: ${slug})`);
+    } else {
+        // console.log(`x No slug mapping for ${icao}`);
     }
 
     try {
