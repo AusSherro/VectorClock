@@ -269,10 +269,53 @@ app.get('/api/iss', async (req, res) => {
 
 // Logo proxy endpoint - serves cached monochrome logos or text fallback
 // Logo proxy endpoint - serves cached logos or fetches new ones
+// Logo proxy endpoint - serves cached logos or fetches new ones
+const ASSETS_DIR = path.join(__dirname, 'assets');
+const ICAO_TO_SLUG = {
+    'QFA': 'qantas', 'JST': 'jetstar', 'VOZ': 'virgin-australia',
+    'ANZ': 'air-new-zealand', 'CPA': 'cathay-pacific', 'SIA': 'singapore-airlines',
+    'UAE': 'emirates', 'ETD': 'etihad-airways', 'QTR': 'qatar-airways',
+    'BAW': 'british-airways', 'UAL': 'united-airlines', 'DLH': 'lufthansa',
+    'AFR': 'air-france', 'KLM': 'klm', 'JAL': 'japan-airlines',
+    'THA': 'thai-airways', 'SWR': 'swiss', 'SAS': 'scandinavian-airlines',
+    'HVN': 'vietnam-airlines', 'VJC': 'vietjet-air', 'HKE': 'hk-express',
+    'FJI': 'fiji-airways', 'AXM': 'airasia', 'XAX': 'airasia',
+    'GIA': 'garuda-indonesia', 'PAL': 'philippine-airlines', 'DAL': 'delta',
+    'AAL': 'american-airlines', 'ACA': 'air-canada', 'KAL': 'korean-air'
+};
+
 app.get('/api/logo/:icao', async (req, res) => {
     const icao = req.params.icao.toUpperCase().substring(0, 3);
     const cachedSvg = path.join(LOGO_CACHE_DIR, `${icao}.svg`);
     const cachedPng = path.join(LOGO_CACHE_DIR, `${icao}.png`);
+
+    // 0. Check Local Assets (Best Quality)
+    if (ICAO_TO_SLUG[icao]) {
+        const slug = ICAO_TO_SLUG[icao];
+        // Try logo-mono.svg, then logo.svg, then icon.svg
+        const candidates = ['logo-mono.svg', 'logo.svg', 'icon-mono.svg', 'icon.svg'];
+
+        for (const file of candidates) {
+            const assetPath = path.join(ASSETS_DIR, slug, file);
+            if (fs.existsSync(assetPath)) {
+                try {
+                    let svgContent = fs.readFileSync(assetPath, 'utf8');
+                    // Force black fill
+                    svgContent = svgContent.replace(/fill="[^"]*"/g, 'fill="#000000"');
+                    svgContent = svgContent.replace(/fill:[^;"]*/g, 'fill:#000000');
+                    if (!svgContent.includes('fill=')) {
+                        svgContent = svgContent.replace('<svg', '<svg fill="#000000"');
+                    }
+
+                    res.setHeader('Content-Type', 'image/svg+xml');
+                    res.setHeader('Cache-Control', 'public, max-age=86400');
+                    return res.send(svgContent);
+                } catch (e) {
+                    console.error('Asset read error:', e);
+                }
+            }
+        }
+    }
 
     try {
         // 1. Check for cached PNG (real logo)
