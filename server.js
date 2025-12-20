@@ -290,20 +290,28 @@ app.get('/api/logo/:icao', async (req, res) => {
         // 3. Try fetching real logo (FlightRadar24)
         console.log(`Fetching logo for ${icao}...`);
         const logoUrl = `https://images.flightradar24.com/assets/airlines/logotypes/${icao}.png`;
-        const response = await fetch(logoUrl);
 
-        if (response.ok) {
-            const buffer = await response.buffer();
-            fs.writeFileSync(cachedPng, buffer);
-            console.log(`✓ Logo cached: ${icao}.png`);
+        try {
+            const response = await axios.get(logoUrl, {
+                responseType: 'arraybuffer',
+                timeout: 5000,
+                httpsAgent: new https.Agent({ family: 4 })
+            });
 
-            res.setHeader('Content-Type', 'image/png');
-            res.setHeader('Cache-Control', 'public, max-age=86400');
-            return res.sendFile(cachedPng);
+            if (response.status === 200) {
+                fs.writeFileSync(cachedPng, response.data);
+                console.log(`✓ Logo cached: ${icao}.png`);
+
+                res.setHeader('Content-Type', 'image/png');
+                res.setHeader('Cache-Control', 'public, max-age=86400');
+                return res.sendFile(cachedPng);
+            }
+        } catch (fetchError) {
+            console.error(`Logo fetch failed for ${icao}:`, fetchError.message);
         }
 
         // 4. Generate fallback if fetch failed
-        console.log(`Logo fetch failed for ${icao}, using fallback`);
+        console.log(`Using fallback logo for ${icao}`);
         const fallbackSvg = generateLogoFallback(icao);
         fs.writeFileSync(cachedSvg, fallbackSvg);
 
