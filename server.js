@@ -267,11 +267,11 @@ app.get('/api/iss', async (req, res) => {
     }
 });
 
-// Logo proxy endpoint - serves cached monochrome logos or text fallback
-// Logo proxy endpoint - serves cached logos or fetches new ones
 // Logo proxy endpoint - serves cached logos or fetches new ones
 const ASSETS_DIR = path.join(__dirname, 'assets');
-const ICAO_TO_SLUG = {
+
+// Default hardcoded map (Fallback)
+let ICAO_TO_SLUG = {
     'QFA': 'qantas', 'JST': 'jetstar', 'VOZ': 'virgin-australia',
     'ANZ': 'air-new-zealand', 'CPA': 'cathay-pacific', 'SIA': 'singapore-airlines',
     'UAE': 'emirates', 'ETD': 'etihad-airways', 'QTR': 'qatar-airways',
@@ -281,8 +281,40 @@ const ICAO_TO_SLUG = {
     'HVN': 'vietnam-airlines', 'VJC': 'vietjet-air', 'HKE': 'hk-express',
     'FJI': 'fiji-airways', 'AXM': 'airasia', 'XAX': 'airasia',
     'GIA': 'garuda-indonesia', 'PAL': 'philippine-airlines', 'DAL': 'delta',
-    'AAL': 'american-airlines', 'ACA': 'air-canada', 'KAL': 'korean-air'
+    'AAL': 'american-airlines', 'ACA': 'air-canada', 'KAL': 'korean-air',
+    'CSN': 'china-southern', 'CCA': 'air-china', 'CES': 'china-eastern',
+    'EVA': 'eva-air', 'CAL': 'china-airlines', 'ANA': 'all-nippon-airways'
 };
+
+// Load airlines.json mapping (overrides/extends default)
+try {
+    const airlinesPath = path.join(__dirname, 'airlines.json');
+    if (fs.existsSync(airlinesPath)) {
+        const fileContent = fs.readFileSync(airlinesPath, 'utf8');
+        // Check if empty
+        if (!fileContent.trim()) {
+            console.warn('! airlines.json is empty, using default map.');
+        } else {
+            const airlinesData = JSON.parse(fileContent);
+            airlinesData.forEach(airline => {
+                if (airline.icao && airline.slug) {
+                    ICAO_TO_SLUG[airline.icao] = airline.slug;
+                }
+                if (airline.subsidiaries) {
+                    airline.subsidiaries.forEach(sub => {
+                        if (sub.icao) ICAO_TO_SLUG[sub.icao] = airline.slug;
+                    });
+                }
+            });
+            console.log(`✓ Loaded ${airlinesData.length} mappings from airlines.json (Total: ${Object.keys(ICAO_TO_SLUG).length})`);
+        }
+    } else {
+        console.warn('! airlines.json not found, using default map.');
+    }
+} catch (e) {
+    console.error('Error loading airlines.json:', e.message);
+    // Keep default map
+}
 
 app.get('/api/logo/:icao', async (req, res) => {
     const icao = req.params.icao.toUpperCase().substring(0, 3);
@@ -325,8 +357,11 @@ app.get('/api/logo/:icao', async (req, res) => {
             return res.sendFile(cachedPng);
         }
 
-        // 2. Check for cached SVG (fallback)
+        // 2. Check for cached SVG (fallback) - legacy cache only
         if (fs.existsSync(cachedSvg)) {
+            // We might want to DELETE legacy fallbacks if we want to stop showing them?
+            // But valid SVGs might be cached there.
+            // We'll trust existing files, but won't create new fallbacks.
             res.setHeader('Content-Type', 'image/svg+xml');
             res.setHeader('Cache-Control', 'public, max-age=86400');
             return res.sendFile(cachedSvg);
@@ -355,21 +390,13 @@ app.get('/api/logo/:icao', async (req, res) => {
             console.error(`Logo fetch failed for ${icao}:`, fetchError.message);
         }
 
-        // 4. Generate fallback if fetch failed
-        console.log(`Using fallback logo for ${icao}`);
-        const fallbackSvg = generateLogoFallback(icao);
-        fs.writeFileSync(cachedSvg, fallbackSvg);
-
-        res.setHeader('Content-Type', 'image/svg+xml');
-        res.setHeader('Cache-Control', 'public, max-age=86400');
-        res.send(fallbackSvg);
+        // 4. NO Fallback - Return 404
+        console.log(`No logo found for ${icao}`);
+        res.status(404).send('Logo not found');
 
     } catch (error) {
         console.error('Logo error:', error.message);
-        // Return inline fallback on error
-        const fallbackSvg = generateLogoFallback(icao);
-        res.setHeader('Content-Type', 'image/svg+xml');
-        res.send(fallbackSvg);
+        res.status(404).send('Logo not found');
     }
 });
 
