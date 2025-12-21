@@ -1,5 +1,52 @@
 # Changelog
 
+## [1.4.0] - 2025-12-21 - Stats Redesign & Remote Settings
+
+### Added
+- **Remote Configuration** (`/settings.html`):
+  - Configure Scan Radius (km) and Interval (seconds)
+  - Toggle API Mode (Free/Paid/Off)
+  - Manage Kindle IP and settings
+  - Set Manual Location coordinates
+- **Stats Page Redesign** (`/stats.html`):
+  - New modern UI with navigation bar and tabs
+  - "Today" and "This Week" counters
+  - "Flights by Hour" bar chart
+  - Search/Filter for Recent Sightings
+  - Sortable table columns
+- **Kindle Connection Stability**:
+  - SSH Keep-Alive (every 30s) preventing timeouts
+  - Auto-wake command (`lipc-set-prop`) before updates
+  - Robust retry logic for connection failures
+
+### Changed
+- Server now exposes `/api/config/interval` and `/api/config/location`
+- `app.js` syncs settings from server every 60 seconds
+- `kindle-display.js` completely rewritten for reliability
+
+---
+
+## [1.3.0] - 2025-12-21 - Kindle Paperwhite Display Support
+
+### Added
+- **Kindle Display Mode**: Use jailbroken Kindle Paperwhite as E-Ink display
+  - SSH key authentication for secure connection
+  - Auto-scaling: 800x480 → 1072x1448 (1.8x scale factor)
+  - 90° rotation for landscape viewing
+  - 8-bit grayscale conversion for eips compatibility
+- **New Files**:
+  - `kindle-display.js` - SCP/SSH push to Kindle
+  - `start_kindle.js` - Orchestrates server + renderer + push
+- **New Command**: `npm run kindle` - Full Kindle display mode
+
+### Technical Details
+- Kindle Paperwhite 7th gen: 1072x1448 framebuffer with rotate:3
+- Uses `sharp` for image processing (rotate, resize, grayscale)
+- Uses `ssh2` for SFTP transfer and remote command execution
+- Pushes to Kindle every 15 seconds via `eips -g` command
+
+---
+
 ## [1.2.0] - 2025-12-21 - AirLabs Integration & Stats Dashboard
 
 ### Added

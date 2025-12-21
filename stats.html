@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Flight Stats Dashboard</title>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -14,317 +14,737 @@
         }
 
         body {
-            font-family: 'JetBrains Mono', monospace;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%);
             color: #eee;
             min-height: 100vh;
-            padding: 20px;
+        }
+
+        /* Navigation */
+        .nav {
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 15px 30px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-brand {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #00d4ff;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 8px;
+        }
+
+        .nav-links a {
+            color: #888;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            transition: all 0.2s;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        .nav-links a:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+
+        .nav-links a.active {
+            background: rgba(0, 212, 255, 0.2);
+            color: #00d4ff;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 30px;
         }
 
         h1 {
             text-align: center;
             margin-bottom: 30px;
-            font-size: 2rem;
-            color: #00d4ff;
+            font-size: 2.2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #00d4ff, #00ff88);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
+        /* Stats Grid */
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 20px;
-            max-width: 1400px;
-            margin: 0 auto 30px;
+            margin-bottom: 40px;
         }
 
         .stat-card {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            padding: 20px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 24px;
             backdrop-filter: blur(10px);
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(0, 212, 255, 0.3);
         }
 
         .stat-card h2 {
-            font-size: 0.9rem;
-            color: #888;
-            margin-bottom: 10px;
+            font-size: 0.75rem;
+            color: #666;
+            margin-bottom: 8px;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 1.5px;
+            font-weight: 600;
         }
 
         .stat-value {
             font-size: 2.5rem;
             font-weight: 700;
             color: #00d4ff;
+            line-height: 1;
         }
 
         .stat-label {
+            font-size: 0.8rem;
+            color: #555;
+            margin-top: 8px;
+        }
+
+        /* Feature Cards (Records) */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .feature-card {
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.08), rgba(0, 212, 255, 0.02));
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 16px;
+            padding: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #00d4ff, #00ff88);
+        }
+
+        .feature-card.gold {
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.08), rgba(255, 215, 0, 0.02));
+            border-color: rgba(255, 215, 0, 0.2);
+        }
+
+        .feature-card.gold::before {
+            background: linear-gradient(90deg, #FFD700, #FFA500);
+        }
+
+        .feature-card.gold .stat-value {
+            color: #FFD700;
+        }
+
+        .feature-title {
             font-size: 0.85rem;
-            color: #aaa;
-            margin-top: 5px;
+            color: #888;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
-        .record-card {
-            background: linear-gradient(135deg, rgba(0, 212, 255, 0.1), rgba(0, 212, 255, 0.02));
-            border: 1px solid rgba(0, 212, 255, 0.3);
-        }
-
-        .record-callsign {
-            font-size: 1.5rem;
+        .feature-callsign {
+            font-size: 1.6rem;
             font-weight: 700;
             color: #fff;
+            margin-bottom: 8px;
         }
 
-        .record-value {
-            font-size: 1.8rem;
+        .feature-value {
+            font-size: 1.4rem;
             color: #00d4ff;
-            margin: 10px 0;
+            margin-bottom: 8px;
         }
 
-        .record-meta {
+        .feature-meta {
             font-size: 0.8rem;
+            color: #666;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 4px;
+            border-radius: 12px;
+            width: fit-content;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            background: transparent;
+            border: none;
             color: #888;
+            cursor: pointer;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .tab:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .tab.active {
+            background: rgba(0, 212, 255, 0.2);
+            color: #00d4ff;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Tables */
+        .table-container {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 30px;
-            max-width: 1400px;
-            margin-left: auto;
-            margin-right: auto;
         }
 
         th,
         td {
-            padding: 12px 15px;
+            padding: 14px 18px;
             text-align: left;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         }
 
         th {
-            background: rgba(0, 212, 255, 0.1);
+            background: rgba(0, 212, 255, 0.05);
             color: #00d4ff;
-            font-weight: 700;
+            font-weight: 600;
             text-transform: uppercase;
-            font-size: 0.8rem;
+            font-size: 0.7rem;
             letter-spacing: 1px;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s;
+        }
+
+        th:hover {
+            background: rgba(0, 212, 255, 0.1);
+        }
+
+        th.sorted-asc::after {
+            content: ' ▲';
+            font-size: 0.6rem;
+        }
+
+        th.sorted-desc::after {
+            content: ' ▼';
+            font-size: 0.6rem;
         }
 
         tr:hover {
-            background: rgba(255, 255, 255, 0.03);
+            background: rgba(255, 255, 255, 0.02);
         }
 
         .callsign {
-            font-weight: 700;
+            font-weight: 600;
             color: #fff;
         }
 
         .count-badge {
-            background: #00d4ff;
+            background: linear-gradient(135deg, #00d4ff, #0099cc);
             color: #000;
-            padding: 3px 8px;
-            border-radius: 12px;
-            font-weight: 700;
-            font-size: 0.85rem;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.8rem;
         }
 
-        .loading {
-            text-align: center;
-            padding: 40px;
+        .rare-badge {
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            color: #000;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        /* Section Headers */
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 600;
             color: #888;
         }
 
-        .refresh-btn {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: #00d4ff;
+        /* Search/Filter */
+        .filter-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filter-input {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 10px 16px;
+            color: #fff;
+            font-family: inherit;
+            font-size: 0.9rem;
+            min-width: 200px;
+        }
+
+        .filter-input:focus {
+            outline: none;
+            border-color: #00d4ff;
+        }
+
+        .filter-input::placeholder {
+            color: #555;
+        }
+
+        /* Chart placeholder */
+        .chart-container {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .chart-title {
+            font-size: 0.9rem;
+            color: #888;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .hourly-chart {
+            display: flex;
+            align-items: flex-end;
+            gap: 4px;
+            height: 120px;
+        }
+
+        .hour-bar {
+            flex: 1;
+            background: linear-gradient(to top, #00d4ff, #00ff88);
+            border-radius: 4px 4px 0 0;
+            min-height: 4px;
+            position: relative;
+            transition: opacity 0.2s;
+        }
+
+        .hour-bar:hover {
+            opacity: 0.8;
+        }
+
+        .hour-bar::after {
+            content: attr(data-label);
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.6rem;
+            color: #555;
+        }
+
+        /* Buttons */
+        .btn {
+            background: linear-gradient(135deg, #00d4ff, #0099cc);
             color: #000;
             border: none;
             padding: 12px 24px;
             border-radius: 8px;
             font-family: inherit;
-            font-weight: 700;
+            font-weight: 600;
             cursor: pointer;
-            transition: transform 0.2s;
+            transition: transform 0.2s, opacity 0.2s;
         }
 
-        .refresh-btn:hover {
-            transform: scale(1.05);
+        .btn:hover {
+            transform: scale(1.02);
+            opacity: 0.9;
         }
 
+        .btn-danger {
+            background: linear-gradient(135deg, #ff4444, #cc0000);
+            color: #fff;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 30px;
+            justify-content: center;
+        }
+
+        /* Footer */
         .last-updated {
             text-align: center;
-            color: #666;
+            color: #444;
             font-size: 0.8rem;
-            margin-top: 20px;
+            margin-top: 40px;
+            padding-bottom: 20px;
         }
 
-        @media (max-width: 600px) {
-            h1 {
-                font-size: 1.5rem;
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+
+            .nav {
+                flex-direction: column;
+                gap: 10px;
+                padding: 15px;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
             }
 
             .stat-value {
-                font-size: 2rem;
+                font-size: 1.8rem;
             }
 
             th,
             td {
-                padding: 8px 10px;
+                padding: 10px 12px;
                 font-size: 0.85rem;
             }
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #555;
         }
     </style>
 </head>
 
 <body>
-    <h1>✈️ Flight Stats Dashboard</h1>
+    <nav class="nav">
+        <div class="nav-brand">✈️ VectorClock</div>
+        <div class="nav-links">
+            <a href="/">Display</a>
+            <a href="/stats.html" class="active">Stats</a>
+            <a href="/settings.html">Settings</a>
+        </div>
+    </nav>
 
-    <div class="stats-grid">
-        <div class="stat-card">
-            <h2>Total Sightings</h2>
-            <div class="stat-value" id="total-sightings">-</div>
-            <div class="stat-label">flights logged</div>
+    <div class="container">
+        <h1>Flight Statistics</h1>
+
+        <!-- Quick Stats Row -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h2>Total Sightings</h2>
+                <div class="stat-value" id="total-sightings">-</div>
+                <div class="stat-label">flights logged</div>
+            </div>
+            <div class="stat-card">
+                <h2>Unique Aircraft</h2>
+                <div class="stat-value" id="unique-flights">-</div>
+                <div class="stat-label">different callsigns</div>
+            </div>
+            <div class="stat-card">
+                <h2>Today</h2>
+                <div class="stat-value" id="today-count">-</div>
+                <div class="stat-label">flights today</div>
+            </div>
+            <div class="stat-card">
+                <h2>This Week</h2>
+                <div class="stat-value" id="week-count">-</div>
+                <div class="stat-label">past 7 days</div>
+            </div>
+            <div class="stat-card">
+                <h2>Unique Models</h2>
+                <div class="stat-value" id="unique-models">-</div>
+                <div class="stat-label">aircraft types</div>
+            </div>
+            <div class="stat-card">
+                <h2>Countries</h2>
+                <div class="stat-value" id="unique-countries">-</div>
+                <div class="stat-label">origin nations</div>
+            </div>
         </div>
 
-        <div class="stat-card">
-            <h2>Unique Aircraft</h2>
-            <div class="stat-value" id="unique-flights">-</div>
-            <div class="stat-label">different callsigns</div>
+        <!-- Feature Cards (Records) -->
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="feature-title">🏆 Most Seen Flight</div>
+                <div class="feature-callsign" id="most-seen-callsign">-</div>
+                <div class="feature-value" id="most-seen-count">- times</div>
+                <div class="feature-meta" id="most-seen-meta">-</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-title">📍 Closest Flyby</div>
+                <div class="feature-callsign" id="closest-callsign">-</div>
+                <div class="feature-value" id="closest-distance">- km</div>
+                <div class="feature-meta" id="closest-meta">-</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-title">🔝 Highest Altitude</div>
+                <div class="feature-callsign" id="highest-callsign">-</div>
+                <div class="feature-value" id="highest-altitude">- m</div>
+                <div class="feature-meta" id="highest-meta">-</div>
+            </div>
+            <div class="feature-card gold">
+                <div class="feature-title">⭐ Rare Sightings</div>
+                <div class="stat-value" id="rare-count">0</div>
+                <div class="feature-meta">special aircraft spotted</div>
+            </div>
         </div>
 
-        <div class="stat-card record-card">
-            <h2>🏆 Most Seen Flight</h2>
-            <div class="record-callsign" id="most-seen-callsign">-</div>
-            <div class="record-value" id="most-seen-count">-</div>
-            <div class="record-meta" id="most-seen-meta">-</div>
+        <!-- Activity Chart -->
+        <div class="chart-container">
+            <div class="chart-title">📊 Flights by Hour (Today)</div>
+            <div class="hourly-chart" id="hourly-chart">
+                <!-- Generated by JS -->
+            </div>
         </div>
 
-        <div class="stat-card record-card">
-            <h2>📍 Closest Flyby</h2>
-            <div class="record-callsign" id="closest-callsign">-</div>
-            <div class="record-value" id="closest-distance">-</div>
-            <div class="record-meta" id="closest-meta">-</div>
+        <!-- Tabs for Tables -->
+        <div class="tabs">
+            <button class="tab active" data-tab="recent">Recent</button>
+            <button class="tab" data-tab="top">Top Flights</button>
+            <button class="tab" data-tab="models">Aircraft Models</button>
+            <button class="tab" data-tab="rare">Rare Aircraft</button>
+            <button class="tab" data-tab="unique">🚔 Unique</button>
         </div>
 
-        <div class="stat-card record-card">
-            <h2>🔝 Highest Altitude</h2>
-            <div class="record-callsign" id="highest-callsign">-</div>
-            <div class="record-value" id="highest-altitude">-</div>
-            <div class="record-meta" id="highest-meta">-</div>
+        <!-- Recent Tab -->
+        <div id="recent-tab" class="tab-content active">
+            <div class="filter-bar">
+                <input type="text" class="filter-input" id="search-recent" placeholder="Search callsign or carrier...">
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th data-sort="callsign">Callsign</th>
+                            <th data-sort="carrier">Carrier</th>
+                            <th data-sort="route">Route</th>
+                            <th data-sort="aircraft">Aircraft</th>
+                            <th data-sort="distance">Distance</th>
+                            <th data-sort="lastSeen">Last Seen</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recent-body">
+                        <tr>
+                            <td colspan="6" class="empty-state">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
 
-        <div class="stat-card"
-            style="border-color: rgba(255, 215, 0, 0.3); background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(255, 215, 0, 0.02));">
-            <h2>⭐ Rare Sightings</h2>
-            <div class="stat-value" id="rare-count" style="color: #FFD700;">-</div>
-            <div class="stat-label">special aircraft spotted</div>
+        <!-- Top Flights Tab -->
+        <div id="top-tab" class="tab-content">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Callsign</th>
+                            <th>Carrier</th>
+                            <th>Route</th>
+                            <th>Aircraft</th>
+                            <th>Count</th>
+                        </tr>
+                    </thead>
+                    <tbody id="top-body">
+                        <tr>
+                            <td colspan="6" class="empty-state">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
 
-        <div class="stat-card">
-            <h2>🛩️ Unique Models</h2>
-            <div class="stat-value" id="unique-models">-</div>
-            <div class="stat-label">different aircraft types</div>
+        <!-- Models Tab -->
+        <div id="models-tab" class="tab-content">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Aircraft Model</th>
+                            <th>Type Code</th>
+                            <th>First Seen</th>
+                            <th>Total Sightings</th>
+                        </tr>
+                    </thead>
+                    <tbody id="models-body">
+                        <tr>
+                            <td colspan="4" class="empty-state">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
 
-        <div class="stat-card">
-            <h2>🌏 Countries</h2>
-            <div class="stat-value" id="unique-countries">-</div>
-            <div class="stat-label">origin countries seen</div>
+        <!-- Rare Tab -->
+        <div id="rare-tab" class="tab-content">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Callsign</th>
+                            <th>Aircraft Type</th>
+                            <th>Carrier</th>
+                            <th>Route</th>
+                            <th>When</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rare-body">
+                        <tr>
+                            <td colspan="5" class="empty-state">No rare aircraft spotted yet...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
+
+        <!-- Unique Tab (Police, Military, Emergency) -->
+        <div id="unique-tab" class="tab-content">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Callsign</th>
+                            <th>Type</th>
+                            <th>Aircraft</th>
+                            <th>When</th>
+                        </tr>
+                    </thead>
+                    <tbody id="unique-body">
+                        <tr>
+                            <td colspan="5" class="empty-state">No special aircraft spotted yet... 🚔🎖️🚁</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="action-buttons">
+            <button class="btn" onclick="loadStats()">↻ Refresh</button>
+            <button class="btn btn-danger" onclick="resetStats()">🗑 Reset All</button>
+        </div>
+
+        <div class="last-updated" id="last-updated">-</div>
     </div>
 
-    <!-- Rare Sightings Section -->
-    <h2 style="text-align: center; color: #FFD700; margin: 40px 0 10px;">⭐ Rare Aircraft Sightings</h2>
-    <table id="rare-table">
-        <thead>
-            <tr>
-                <th>Callsign</th>
-                <th>Aircraft Type</th>
-                <th>Carrier</th>
-                <th>Route</th>
-                <th>When</th>
-            </tr>
-        </thead>
-        <tbody id="rare-body">
-            <tr>
-                <td colspan="5" class="loading">No rare aircraft spotted yet...</td>
-            </tr>
-        </tbody>
-    </table>
-
-    <!-- First-Time Models Section -->
-    <h2 style="text-align: center; color: #00ff88; margin: 40px 0 10px;">🆕 Aircraft Model Timeline</h2>
-    <p style="text-align: center; color: #666; margin-bottom: 15px; font-size: 0.85rem;">When you first saw each
-        aircraft type</p>
-    <table id="models-table">
-        <thead>
-            <tr>
-                <th>Aircraft Model</th>
-                <th>Type Code</th>
-                <th>First Seen</th>
-                <th>Total Sightings</th>
-            </tr>
-        </thead>
-        <tbody id="models-body">
-            <tr>
-                <td colspan="4" class="loading">Loading model data...</td>
-            </tr>
-        </tbody>
-    </table>
-
-    <h2 style="text-align: center; color: #888; margin: 30px 0 10px;">Top 10 Most Seen</h2>
-    <table id="top-flights-table">
-        <thead>
-            <tr>
-                <th>Rank</th>
-                <th>Callsign</th>
-                <th>Carrier</th>
-                <th>Route</th>
-                <th>Aircraft</th>
-                <th>Count</th>
-            </tr>
-        </thead>
-        <tbody id="top-flights-body">
-            <tr>
-                <td colspan="6" class="loading">Loading stats...</td>
-            </tr>
-        </tbody>
-    </table>
-
-    <h2 style="text-align: center; color: #888; margin: 40px 0 10px;">Recent Sightings</h2>
-    <table id="recent-table">
-        <thead>
-            <tr>
-                <th>Callsign</th>
-                <th>Carrier</th>
-                <th>Distance</th>
-                <th>Altitude</th>
-                <th>Last Seen</th>
-            </tr>
-        </thead>
-        <tbody id="recent-body">
-            <tr>
-                <td colspan="5" class="loading">Loading stats...</td>
-            </tr>
-        </tbody>
-    </table>
-
-    <div class="last-updated" id="last-updated">-</div>
-
-    <button class="refresh-btn" onclick="loadStats()">↻ Refresh</button>
-
     <script>
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.tab + '-tab').classList.add('active');
+            });
+        });
+
+        // Search filter
+        document.getElementById('search-recent').addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            document.querySelectorAll('#recent-body tr').forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(query) ? '' : 'none';
+            });
+        });
+
+        // Generate hourly chart
+        function renderHourlyChart(hourlyData) {
+            const chart = document.getElementById('hourly-chart');
+            const maxCount = Math.max(...Object.values(hourlyData), 1);
+
+            let html = '';
+            for (let h = 0; h < 24; h++) {
+                const count = hourlyData[h] || 0;
+                const height = (count / maxCount) * 100;
+                const label = h % 3 === 0 ? h + 'h' : '';
+                html += `<div class="hour-bar" style="height: ${Math.max(height, 2)}%" data-label="${label}" title="${h}:00 - ${count} flights"></div>`;
+            }
+            chart.innerHTML = html;
+        }
+
         async function loadStats() {
             try {
                 const res = await fetch('/api/stats');
                 const data = await res.json();
 
-                // Update summary cards
+                // Summary stats
                 document.getElementById('total-sightings').textContent = data.totalSightings || 0;
                 document.getElementById('unique-flights').textContent = data.uniqueFlights || 0;
+                document.getElementById('unique-models').textContent = data.uniqueModels || 0;
+                document.getElementById('unique-countries').textContent = data.uniqueCountries || 0;
+                document.getElementById('rare-count').textContent = data.rareCount || 0;
+
+                // Calculate today/week counts
+                const now = new Date();
+                const today = now.toDateString();
+                const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
+
+                // Use server-provided data (calculated from ALL flights, not just recent 20)
+                const todayCount = data.todayCount || 0;
+                const weekCount = data.weekCount || 0;
+                const hourlyData = data.hourlyData || {};
+
+                document.getElementById('today-count').textContent = todayCount;
+                document.getElementById('week-count').textContent = weekCount;
+
+                renderHourlyChart(hourlyData);
 
                 // Most seen
                 if (data.topByCount && data.topByCount.length > 0) {
@@ -339,7 +759,7 @@
                     const [callsign, info] = data.closestFlyby;
                     document.getElementById('closest-callsign').textContent = callsign;
                     document.getElementById('closest-distance').textContent =
-                        info.minDistance === Infinity ? '-' : info.minDistance.toFixed(1) + ' km';
+                        isFinite(info.minDistance) ? info.minDistance.toFixed(1) + ' km' : '-';
                     document.getElementById('closest-meta').textContent = info.carrier || '-';
                 }
 
@@ -352,8 +772,25 @@
                     document.getElementById('highest-meta').textContent = info.carrier || '-';
                 }
 
-                // Top 10 table
-                const topBody = document.getElementById('top-flights-body');
+                // Recent table
+                const recentBody = document.getElementById('recent-body');
+                if (data.recentSightings && data.recentSightings.length > 0) {
+                    recentBody.innerHTML = data.recentSightings.map(([callsign, info]) => `
+                        <tr>
+                            <td class="callsign">${callsign}${info.rare ? '<span class="rare-badge">RARE</span>' : ''}</td>
+                            <td>${info.carrier || '-'}</td>
+                            <td>${info.route || '-'}</td>
+                            <td>${info.aircraft || '-'}</td>
+                            <td>${isFinite(info.minDistance) ? info.minDistance.toFixed(1) + ' km' : '-'}</td>
+                            <td>${new Date(info.lastSeen).toLocaleString()}</td>
+                        </tr>
+                    `).join('');
+                } else {
+                    recentBody.innerHTML = '<tr><td colspan="6" class="empty-state">No flights recorded yet</td></tr>';
+                }
+
+                // Top flights table
+                const topBody = document.getElementById('top-body');
                 if (data.topByCount && data.topByCount.length > 0) {
                     topBody.innerHTML = data.topByCount.map(([callsign, info], i) => `
                         <tr>
@@ -365,42 +802,26 @@
                             <td><span class="count-badge">${info.count}</span></td>
                         </tr>
                     `).join('');
-                } else {
-                    topBody.innerHTML = '<tr><td colspan="6" class="loading">No flights recorded yet</td></tr>';
                 }
 
-                // Recent sightings table
-                const recentBody = document.getElementById('recent-body');
-                if (data.recentSightings && data.recentSightings.length > 0) {
-                    recentBody.innerHTML = data.recentSightings.map(([callsign, info]) => `
+                // Models table
+                const modelsBody = document.getElementById('models-body');
+                if (data.modelsList && data.modelsList.length > 0) {
+                    modelsBody.innerHTML = data.modelsList.map(([typeCode, info]) => `
                         <tr>
-                            <td class="callsign">${callsign}</td>
-                            <td>${info.carrier || '-'}</td>
-                            <td>${info.minDistance === Infinity ? '-' : info.minDistance.toFixed(1) + ' km'}</td>
-                            <td>${(info.maxAltitude || 0).toLocaleString()} m</td>
-                            <td>${new Date(info.lastSeen).toLocaleString()}</td>
+                            <td>${info.displayName || info.name || typeCode}</td>
+                            <td><code style="background:#333;padding:2px 8px;border-radius:4px;">${typeCode}</code></td>
+                            <td style="color:#00ff88">${new Date(info.firstSeen).toLocaleDateString()}</td>
+                            <td><span class="count-badge">${info.count}</span></td>
                         </tr>
                     `).join('');
-                } else {
-                    recentBody.innerHTML = '<tr><td colspan="5" class="loading">No flights recorded yet</td></tr>';
                 }
 
-                // ========== NEW STATS ==========
-
-                // Rare count
-                document.getElementById('rare-count').textContent = data.rareCount || 0;
-
-                // Unique models
-                document.getElementById('unique-models').textContent = data.uniqueModels || 0;
-
-                // Countries
-                document.getElementById('unique-countries').textContent = data.uniqueCountries || 0;
-
-                // Rare sightings table
+                // Rare table
                 const rareBody = document.getElementById('rare-body');
                 if (data.rareSightings && data.rareSightings.length > 0) {
                     rareBody.innerHTML = data.rareSightings.map(([callsign, info]) => `
-                        <tr style="background: rgba(255, 215, 0, 0.05);">
+                        <tr style="background:rgba(255,215,0,0.03)">
                             <td class="callsign">⭐ ${callsign}</td>
                             <td>${info.aircraft || info.typecode || '-'}</td>
                             <td>${info.carrier || '-'}</td>
@@ -408,31 +829,50 @@
                             <td>${new Date(info.lastSeen).toLocaleString()}</td>
                         </tr>
                     `).join('');
-                } else {
-                    rareBody.innerHTML = '<tr><td colspan="5" class="loading">No rare aircraft spotted yet - keep watching! 🛫</td></tr>';
                 }
 
-                // Models timeline table
-                const modelsBody = document.getElementById('models-body');
-                if (data.modelsList && data.modelsList.length > 0) {
-                    modelsBody.innerHTML = data.modelsList.map(([typeCode, info]) => `
-                        <tr>
-                            <td>${info.name || typeCode}</td>
-                            <td><span style="background: #333; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem;">${typeCode}</span></td>
-                            <td style="color: #00ff88;">${new Date(info.firstSeen).toLocaleDateString()}</td>
-                            <td><span class="count-badge">${info.count}</span></td>
+                // Unique/Special table (Police, Military, Emergency)
+                const uniqueBody = document.getElementById('unique-body');
+                if (data.uniqueSightings && data.uniqueSightings.length > 0) {
+                    const categoryIcons = {
+                        'Military': '🎖️',
+                        'Police': '🚔',
+                        'Emergency': '🚁',
+                        'Government': '🛂',
+                        'Media': '📺',
+                        'Search & Rescue': '🆘'
+                    };
+                    uniqueBody.innerHTML = data.uniqueSightings.map(([callsign, info]) => `
+                        <tr style="background:rgba(0,200,255,0.03)">
+                            <td>${categoryIcons[info.special] || '✈️'} <strong>${info.special || 'Special'}</strong></td>
+                            <td class="callsign">${callsign}</td>
+                            <td>${info.specialName || '-'}</td>
+                            <td>${info.aircraft || info.typecode || '-'}</td>
+                            <td>${new Date(info.lastSeen).toLocaleString()}</td>
                         </tr>
                     `).join('');
                 } else {
-                    modelsBody.innerHTML = '<tr><td colspan="4" class="loading">No aircraft models recorded yet</td></tr>';
+                    uniqueBody.innerHTML = '<tr><td colspan="5" class="empty-state">No Police/Military/Emergency aircraft spotted yet... 🚔🎖️🚁</td></tr>';
                 }
 
-                // Last updated
                 document.getElementById('last-updated').textContent =
-                    'Last updated: ' + (data.lastUpdated ? new Date(data.lastUpdated).toLocaleString() : 'Never');
+                    'Last updated: ' + new Date().toLocaleString();
 
             } catch (e) {
                 console.error('Failed to load stats:', e);
+            }
+        }
+
+        async function resetStats() {
+            if (!confirm('Are you sure you want to reset ALL flight statistics? This cannot be undone!')) return;
+            try {
+                const res = await fetch('/api/stats', { method: 'DELETE' });
+                if (res.ok) {
+                    alert('Stats have been reset!');
+                    loadStats();
+                }
+            } catch (e) {
+                alert('Error: ' + e.message);
             }
         }
 

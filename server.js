@@ -32,6 +32,70 @@ try {
     console.error('Aircraft DB init error:', e.message);
 }
 
+// ICAO Type Code to Proper Name mapping (most common seen in AU)
+const ICAO_TYPE_NAMES = {
+    // Boeing
+    'B788': 'Boeing 787-8 Dreamliner',
+    'B789': 'Boeing 787-9 Dreamliner',
+    'B78X': 'Boeing 787-10 Dreamliner',
+    'B737': 'Boeing 737',
+    'B738': 'Boeing 737-800',
+    'B739': 'Boeing 737-900',
+    'B38M': 'Boeing 737 MAX 8',
+    'B39M': 'Boeing 737 MAX 9',
+    'B772': 'Boeing 777-200',
+    'B773': 'Boeing 777-300',
+    'B77W': 'Boeing 777-300ER',
+    'B744': 'Boeing 747-400',
+    'B748': 'Boeing 747-8',
+    // Airbus
+    'A319': 'Airbus A319',
+    'A320': 'Airbus A320',
+    'A20N': 'Airbus A320neo',
+    'A321': 'Airbus A321',
+    'A21N': 'Airbus A321neo',
+    'A332': 'Airbus A330-200',
+    'A333': 'Airbus A330-300',
+    'A339': 'Airbus A330-900neo',
+    'A359': 'Airbus A350-900',
+    'A35K': 'Airbus A350-1000',
+    'A388': 'Airbus A380-800',
+    // Regional
+    'E190': 'Embraer E190',
+    'E195': 'Embraer E195',
+    'E290': 'Embraer E190-E2',
+    'DH8D': 'Dash 8 Q400',
+    'DH8C': 'Dash 8 Q300',
+    'DH8B': 'Dash 8 Q200',
+    'AT76': 'ATR 72-600',
+    'AT75': 'ATR 72-500',
+    'SF34': 'Saab 340',
+    'F100': 'Fokker 100',
+    // Business/Private
+    'GLF6': 'Gulfstream G650',
+    'GL7T': 'Gulfstream G700',
+    'GLEX': 'Bombardier Global Express',
+    'CL35': 'Bombardier Challenger 350',
+    'C680': 'Cessna Citation Sovereign',
+    'PC12': 'Pilatus PC-12',
+    'PC24': 'Pilatus PC-24',
+    // Helicopters
+    'EC35': 'Airbus EC135',
+    'EC45': 'Airbus EC145',
+    'EC55': 'Airbus EC155',
+    'AS50': 'Airbus AS350 Squirrel',
+    'B06': 'Bell 206',
+    'B412': 'Bell 412',
+    // Military
+    'C17': 'Boeing C-17 Globemaster III',
+    'C130': 'Lockheed C-130 Hercules',
+    'C30J': 'Lockheed C-130J Super Hercules',
+    'E737': 'Boeing E-7A Wedgetail',
+    'P8': 'Boeing P-8A Poseidon',
+    'PC21': 'Pilatus PC-21',
+    'HAWK': 'BAE Hawk',
+};
+
 /**
  * Lookup aircraft by ICAO24 hex code in local database
  * @param {string} icao24 - Aircraft ICAO24 hex code (e.g., "7C4EE3")
@@ -183,32 +247,197 @@ app.use(express.static(__dirname));
 app.use(express.json());
 
 // ==========================================
-// Flight Stats Storage
+// Flight Stats Storage (SQLite)
 // ==========================================
 
-const STATS_FILE = path.join(__dirname, 'flight_stats.json');
+const STATS_DB_PATH = path.join(__dirname, 'flight_stats.db');
+const STATS_JSON_PATH = path.join(__dirname, 'flight_stats.json');
 
-// Load existing stats or create empty object
-function loadStats() {
+let statsDB = null;
+
+// Prepared statements
+let stmts = {};
+
+/**
+ * Initialize SQLite stats database
+ */
+function initStatsDB() {
     try {
-        if (fs.existsSync(STATS_FILE)) {
-            return JSON.parse(fs.readFileSync(STATS_FILE, 'utf8'));
+        const Database = require('better-sqlite3');
+        statsDB = new Database(STATS_DB_PATH);
+
+        // Create tables
+        statsDB.exec(`
+            CREATE TABLE IF NOT EXISTS flights (
+                callsign TEXT PRIMARY KEY,
+                count INTEGER DEFAULT 0,
+                first_seen TEXT,
+                last_seen TEXT,
+                min_distance REAL,
+                max_altitude REAL,
+                carrier TEXT,
+                route TEXT,
+                aircraft TEXT,
+                typecode TEXT,
+                country TEXT,
+                rare INTEGER DEFAULT 0,
+                special TEXT,
+                special_name TEXT
+            );
+            
+            CREATE TABLE IF NOT EXISTS models (
+                typecode TEXT PRIMARY KEY,
+                name TEXT,
+                first_seen TEXT,
+                last_seen TEXT,
+                count INTEGER DEFAULT 0
+            );
+            
+            CREATE TABLE IF NOT EXISTS meta (
+                key TEXT PRIMARY KEY,
+                value TEXT
+            );
+            
+            CREATE INDEX IF NOT EXISTS idx_flights_last_seen ON flights(last_seen);
+            CREATE INDEX IF NOT EXISTS idx_flights_special ON flights(special);
+            CREATE INDEX IF NOT EXISTS idx_flights_rare ON flights(rare);
+        `);
+
+        // Prepare statements for performance
+        stmts.getFlight = statsDB.prepare('SELECT * FROM flights WHERE callsign = ?');
+        stmts.upsertFlight = statsDB.prepare(`
+            INSERT INTO flights (callsign, count, first_seen, last_seen, min_distance, max_altitude, carrier, route, aircraft, typecode, country, rare, special, special_name)
+            VALUES (@callsign, @count, @first_seen, @last_seen, @min_distance, @max_altitude, @carrier, @route, @aircraft, @typecode, @country, @rare, @special, @special_name)
+            ON CONFLICT(callsign) DO UPDATE SET
+                count = @count,
+                last_seen = @last_seen,
+                min_distance = MIN(min_distance, @min_distance),
+                max_altitude = MAX(max_altitude, @max_altitude),
+                carrier = COALESCE(@carrier, carrier),
+                route = COALESCE(@route, route),
+                aircraft = COALESCE(@aircraft, aircraft),
+                typecode = COALESCE(@typecode, typecode),
+                country = COALESCE(@country, country),
+                rare = MAX(rare, @rare),
+                special = COALESCE(@special, special),
+                special_name = COALESCE(@special_name, special_name)
+        `);
+        stmts.getModel = statsDB.prepare('SELECT * FROM models WHERE typecode = ?');
+        stmts.upsertModel = statsDB.prepare(`
+            INSERT INTO models (typecode, name, first_seen, last_seen, count)
+            VALUES (@typecode, @name, @first_seen, @last_seen, @count)
+            ON CONFLICT(typecode) DO UPDATE SET
+                name = COALESCE(@name, name),
+                last_seen = @last_seen,
+                count = count + 1
+        `);
+        stmts.getAllFlights = statsDB.prepare('SELECT * FROM flights ORDER BY last_seen DESC');
+        stmts.getAllModels = statsDB.prepare('SELECT * FROM models ORDER BY count DESC');
+        stmts.getTotalSightings = statsDB.prepare('SELECT SUM(count) as total FROM flights');
+        stmts.getMeta = statsDB.prepare('SELECT value FROM meta WHERE key = ?');
+        stmts.setMeta = statsDB.prepare('INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)');
+
+        console.log('✓ Stats database initialized (flight_stats.db)');
+
+        // Migrate from JSON if exists and DB is empty
+        migrateFromJSON();
+
+        return true;
+    } catch (e) {
+        console.error('Stats DB init error:', e.message);
+        return false;
+    }
+}
+
+/**
+ * Migrate data from JSON to SQLite (one-time)
+ */
+function migrateFromJSON() {
+    if (!statsDB) return;
+
+    // Check if we have any flights already
+    const count = statsDB.prepare('SELECT COUNT(*) as c FROM flights').get();
+    if (count.c > 0) return; // Already has data
+
+    // Check for JSON file
+    if (!fs.existsSync(STATS_JSON_PATH)) return;
+
+    try {
+        console.log('📦 Migrating stats from JSON to SQLite...');
+        const data = JSON.parse(fs.readFileSync(STATS_JSON_PATH, 'utf8'));
+
+        // Migrate flights
+        const insertFlight = statsDB.prepare(`
+            INSERT OR REPLACE INTO flights (callsign, count, first_seen, last_seen, min_distance, max_altitude, carrier, route, aircraft, typecode, country, rare, special, special_name)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+
+        const flightTx = statsDB.transaction((flights) => {
+            for (const [callsign, info] of Object.entries(flights)) {
+                insertFlight.run(
+                    callsign,
+                    info.count || 0,
+                    info.firstSeen || null,
+                    info.lastSeen || null,
+                    info.minDistance === Infinity ? null : (info.minDistance || null),
+                    info.maxAltitude || null,
+                    info.carrier || null,
+                    info.route || null,
+                    info.aircraft || null,
+                    info.typecode || null,
+                    info.country || null,
+                    info.rare ? 1 : 0,
+                    info.special || null,
+                    info.specialName || null
+                );
+            }
+        });
+
+        if (data.flights) {
+            flightTx(data.flights);
+            console.log(`   ✓ Migrated ${Object.keys(data.flights).length} flights`);
         }
+
+        // Migrate models
+        const insertModel = statsDB.prepare(`
+            INSERT OR REPLACE INTO models (typecode, name, first_seen, last_seen, count)
+            VALUES (?, ?, ?, ?, ?)
+        `);
+
+        const modelTx = statsDB.transaction((models) => {
+            for (const [typecode, info] of Object.entries(models)) {
+                insertModel.run(
+                    typecode,
+                    info.name || null,
+                    info.firstSeen || null,
+                    info.lastSeen || null,
+                    info.count || 0
+                );
+            }
+        });
+
+        if (data.models) {
+            modelTx(data.models);
+            console.log(`   ✓ Migrated ${Object.keys(data.models).length} models`);
+        }
+
+        // Store total sightings
+        if (data.totalSightings) {
+            stmts.setMeta.run('totalSightings', String(data.totalSightings));
+        }
+
+        // Backup JSON file
+        fs.renameSync(STATS_JSON_PATH, STATS_JSON_PATH + '.backup');
+        console.log('   ✓ JSON backed up to flight_stats.json.backup');
+        console.log('✅ Migration complete!');
+
     } catch (e) {
-        console.error('Error loading stats:', e);
+        console.error('Migration error:', e.message);
     }
-    return { flights: {}, totalSightings: 0, lastUpdated: null };
 }
 
-// Save stats to file
-function saveStats(stats) {
-    try {
-        stats.lastUpdated = new Date().toISOString();
-        fs.writeFileSync(STATS_FILE, JSON.stringify(stats, null, 2));
-    } catch (e) {
-        console.error('Error saving stats:', e);
-    }
-}
+// Initialize stats DB on load
+initStatsDB();
 
 // ==========================================
 // Helper Functions
@@ -498,111 +727,225 @@ app.get('/api/aircraft-meta/:icao24', (req, res) => {
 
 // GET all stats
 app.get('/api/stats', (req, res) => {
-    const stats = loadStats();
+    if (!statsDB) {
+        return res.status(500).json({ error: 'Stats database not initialized' });
+    }
 
-    // Calculate derived stats
-    const flights = Object.entries(stats.flights || {});
-    const sortedByCount = [...flights].sort((a, b) => b[1].count - a[1].count);
-    const sortedByClosest = [...flights].sort((a, b) => a[1].minDistance - b[1].minDistance);
-    const sortedByHighest = [...flights].sort((a, b) => (b[1].maxAltitude || 0) - (a[1].maxAltitude || 0));
-    const sortedByRecent = [...flights].sort((a, b) => new Date(b[1].lastSeen) - new Date(a[1].lastSeen));
+    try {
+        // Get all flights from SQLite
+        const flightsRaw = stmts.getAllFlights.all();
 
-    // Rare sightings (sorted by most recent)
-    const rareSightings = flights
-        .filter(([_, info]) => info.rare)
-        .sort((a, b) => new Date(b[1].lastSeen) - new Date(a[1].lastSeen))
-        .slice(0, 20);
+        // Convert to [callsign, info] format for compatibility
+        const flights = flightsRaw.map(f => [f.callsign, {
+            count: f.count,
+            firstSeen: f.first_seen,
+            lastSeen: f.last_seen,
+            minDistance: f.min_distance,
+            maxAltitude: f.max_altitude,
+            carrier: f.carrier,
+            route: f.route,
+            aircraft: f.aircraft,
+            typecode: f.typecode,
+            country: f.country,
+            rare: f.rare === 1,
+            special: f.special,
+            specialName: f.special_name
+        }]);
 
-    // Unique aircraft models with first-seen dates
-    const models = stats.models || {};
-    const modelsList = Object.entries(models)
-        .sort((a, b) => new Date(a[1].firstSeen) - new Date(b[1].firstSeen)); // Oldest first
+        // Sort by various criteria
+        const sortedByCount = [...flights].sort((a, b) => b[1].count - a[1].count);
+        const sortedByClosest = [...flights].sort((a, b) => (a[1].minDistance || Infinity) - (b[1].minDistance || Infinity));
+        const sortedByHighest = [...flights].sort((a, b) => (b[1].maxAltitude || 0) - (a[1].maxAltitude || 0));
 
-    // Unique countries
-    const countries = new Set();
-    flights.forEach(([_, info]) => {
-        if (info.country) countries.add(info.country);
-    });
+        // Get models
+        const modelsRaw = stmts.getAllModels.all();
+        const modelsList = modelsRaw.map(m => {
+            const displayName = ICAO_TYPE_NAMES[m.typecode] || m.name || m.typecode;
+            return [m.typecode, {
+                name: m.name,
+                firstSeen: m.first_seen,
+                lastSeen: m.last_seen,
+                count: m.count,
+                displayName
+            }];
+        });
 
-    res.json({
-        ...stats,
-        uniqueFlights: flights.length,
-        topByCount: sortedByCount.slice(0, 10),
-        closestFlyby: sortedByClosest[0] || null,
-        highestAltitude: sortedByHighest[0] || null,
-        recentSightings: sortedByRecent.slice(0, 20),
-        // New stats
-        rareSightings: rareSightings,
-        rareCount: rareSightings.length,
-        modelsList: modelsList,
-        uniqueModels: Object.keys(models).length,
-        uniqueCountries: countries.size
-    });
+        // Rare sightings
+        const rareSightings = flights
+            .filter(([_, info]) => info.rare)
+            .slice(0, 20);
+
+        // Unique/Special sightings
+        const uniqueSightings = flights
+            .filter(([_, info]) => info.special)
+            .slice(0, 50);
+
+        // Unique countries
+        const countries = new Set();
+        flights.forEach(([_, info]) => {
+            if (info.country) countries.add(info.country);
+        });
+
+        // Calculate hourly data for TODAY
+        const now = new Date();
+        const todayStr = now.toDateString();
+        const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
+
+        let todayCount = 0;
+        let weekCount = 0;
+        const hourlyData = {};
+
+        flights.forEach(([callsign, info]) => {
+            if (!info.lastSeen) return;
+            const seen = new Date(info.lastSeen);
+
+            if (seen.toDateString() === todayStr) {
+                todayCount++;
+                const hour = seen.getHours();
+                hourlyData[hour] = (hourlyData[hour] || 0) + 1;
+            }
+
+            if (seen >= weekAgo) {
+                weekCount++;
+            }
+        });
+
+        // Get total sightings
+        const totalResult = stmts.getTotalSightings.get();
+        const totalSightings = totalResult?.total || 0;
+
+        res.json({
+            totalSightings,
+            uniqueFlights: flights.length,
+            topByCount: sortedByCount.slice(0, 10),
+            closestFlyby: sortedByClosest[0] || null,
+            highestAltitude: sortedByHighest[0] || null,
+            recentSightings: flights.slice(0, 20), // Already sorted by last_seen DESC
+            rareSightings,
+            rareCount: rareSightings.length,
+            modelsList,
+            uniqueModels: modelsRaw.length,
+            uniqueCountries: countries.size,
+            uniqueSightings,
+            uniqueCount: uniqueSightings.length,
+            hourlyData,
+            todayCount,
+            weekCount
+        });
+    } catch (e) {
+        console.error('Stats GET error:', e.message);
+        res.status(500).json({ error: e.message });
+    }
 });
+
+// Server-side cooldown tracking for stats (1 hour per callsign)
+const STATS_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
+const statsLastRecorded = new Map(); // callsign -> timestamp
 
 // POST new sighting
 app.post('/api/stats', (req, res) => {
-    const { callsign, distance, altitude, carrier, route, aircraft, rare, typecode, country } = req.body;
+    const { callsign, distance, altitude, carrier, route, aircraft, rare, typecode, country, special, specialName } = req.body;
 
     if (!callsign) {
         return res.status(400).json({ error: 'Callsign required' });
     }
 
-    const stats = loadStats();
-
-    // Initialize flight entry if new
-    if (!stats.flights[callsign]) {
-        stats.flights[callsign] = {
-            count: 0,
-            firstSeen: new Date().toISOString(),
-            minDistance: Infinity,
-            maxAltitude: 0
-        };
+    if (!statsDB) {
+        return res.status(500).json({ error: 'Stats database not initialized' });
     }
 
-    const flight = stats.flights[callsign];
-    flight.count++;
-    flight.lastSeen = new Date().toISOString();
-
-    // Update records
-    if (distance !== undefined && distance < flight.minDistance) {
-        flight.minDistance = distance;
+    // Check server-side cooldown
+    const now = Date.now();
+    const lastRecorded = statsLastRecorded.get(callsign);
+    if (lastRecorded && (now - lastRecorded) < STATS_COOLDOWN_MS) {
+        // Skip - already recorded within the last hour
+        const existing = stmts.getFlight.get(callsign);
+        return res.json({
+            success: true,
+            callsign,
+            count: existing?.count || 0,
+            skipped: true,
+            reason: 'Cooldown active (1 hour)'
+        });
     }
-    if (altitude !== undefined && altitude > (flight.maxAltitude || 0)) {
-        flight.maxAltitude = altitude;
-    }
 
-    // Update metadata
-    if (carrier) flight.carrier = carrier;
-    if (route) flight.route = route;
-    if (aircraft) flight.aircraft = aircraft;
-    if (rare) flight.rare = true;
-    if (typecode) flight.typecode = typecode;
-    if (country) flight.country = country;
+    // Mark as recorded
+    statsLastRecorded.set(callsign, now);
 
-    // Track unique aircraft models with first-seen dates
-    if (typecode || aircraft) {
-        const modelKey = typecode || aircraft;
-        if (!stats.models) stats.models = {};
-        if (!stats.models[modelKey]) {
-            stats.models[modelKey] = {
-                firstSeen: new Date().toISOString(),
-                name: aircraft || typecode,
-                typecode: typecode,
-                count: 0
-            };
-            console.log(`🆕 NEW MODEL: ${modelKey} (${aircraft})`);
+    // Clean up old entries (older than 2 hours)
+    for (const [key, timestamp] of statsLastRecorded.entries()) {
+        if (now - timestamp > STATS_COOLDOWN_MS * 2) {
+            statsLastRecorded.delete(key);
         }
-        stats.models[modelKey].count++;
-        stats.models[modelKey].lastSeen = new Date().toISOString();
     }
 
-    stats.totalSightings = (stats.totalSightings || 0) + 1;
+    try {
+        const nowISO = new Date().toISOString();
 
-    saveStats(stats);
+        // Get existing flight or create new
+        const existing = stmts.getFlight.get(callsign);
+        const newCount = (existing?.count || 0) + 1;
 
-    console.log(`✓ Stat recorded: ${callsign} (seen ${flight.count}x)${rare ? ' ⭐RARE!' : ''}`);
-    res.json({ success: true, callsign, count: flight.count });
+        // Upsert flight
+        stmts.upsertFlight.run({
+            callsign,
+            count: newCount,
+            first_seen: existing?.first_seen || nowISO,
+            last_seen: nowISO,
+            min_distance: distance || null,
+            max_altitude: altitude || null,
+            carrier: carrier || null,
+            route: route || null,
+            aircraft: aircraft || null,
+            typecode: typecode || null,
+            country: country || null,
+            rare: rare ? 1 : 0,
+            special: special || null,
+            special_name: specialName || null
+        });
+
+        // Track model if typecode provided
+        if (typecode || aircraft) {
+            const modelKey = typecode || aircraft;
+            const existingModel = stmts.getModel.get(modelKey);
+
+            if (!existingModel) {
+                console.log(`🆕 NEW MODEL: ${modelKey} (${aircraft})`);
+            }
+
+            stmts.upsertModel.run({
+                typecode: modelKey,
+                name: aircraft || typecode,
+                first_seen: existingModel?.first_seen || nowISO,
+                last_seen: nowISO,
+                count: 1 // Will be incremented by ON CONFLICT
+            });
+        }
+
+        console.log(`✓ Stat recorded: ${callsign} (seen ${newCount}x)${rare ? ' ⭐RARE!' : ''}`);
+        res.json({ success: true, callsign, count: newCount });
+
+    } catch (e) {
+        console.error('Stats POST error:', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// DELETE all stats (reset)
+app.delete('/api/stats', (req, res) => {
+    if (!statsDB) {
+        return res.status(500).json({ error: 'Stats database not initialized' });
+    }
+
+    try {
+        statsDB.exec('DELETE FROM flights; DELETE FROM models; DELETE FROM meta;');
+        statsLastRecorded.clear();
+        console.log('✓ Stats reset by user');
+        res.json({ success: true, message: 'All stats have been reset' });
+    } catch (e) {
+        console.error('Error resetting stats:', e);
+        res.status(500).json({ error: 'Failed to reset stats' });
+    }
 });
 
 // Logo proxy endpoint - serves cached logos or fetches new ones
@@ -919,6 +1262,67 @@ app.get('/api/config/api-mode', (req, res) => {
     res.json({ mode: API_MODE });
 });
 
+// Server-side radius setting (shared between Puppeteer and browser)
+let SCAN_RADIUS = userConfig.radius || 5; // Default 5km
+
+app.get('/api/config/radius', (req, res) => {
+    res.json({ radius: SCAN_RADIUS });
+});
+
+app.post('/api/config/radius', (req, res) => {
+    const { radius } = req.body;
+    if (typeof radius === 'number' && radius >= 1 && radius <= 100) {
+        SCAN_RADIUS = radius;
+        console.log(`Scan radius updated: ${SCAN_RADIUS} km`);
+        res.json({ success: true, radius: SCAN_RADIUS });
+    } else {
+        res.status(400).json({ error: 'Invalid radius. Must be 1-100 km' });
+    }
+});
+
+// Server-side interval setting
+let SCAN_INTERVAL = userConfig.interval || 30; // Default 30s
+
+app.get('/api/config/interval', (req, res) => {
+    res.json({ interval: SCAN_INTERVAL });
+});
+
+app.post('/api/config/interval', (req, res) => {
+    const { interval } = req.body;
+    if (typeof interval === 'number' && interval >= 10 && interval <= 300) {
+        SCAN_INTERVAL = interval;
+        console.log(`Scan interval updated: ${SCAN_INTERVAL} sec`);
+        res.json({ success: true, interval: SCAN_INTERVAL });
+    } else {
+        res.status(400).json({ error: 'Invalid interval. Must be 10-300 sec' });
+    }
+});
+
+// Kindle frontlight settings
+let KINDLE_FRONTLIGHT = {
+    enabled: false,
+    brightness: 0
+};
+
+app.get('/api/config/frontlight', (req, res) => {
+    res.json(KINDLE_FRONTLIGHT);
+});
+
+app.post('/api/config/frontlight', (req, res) => {
+    const { enabled, brightness } = req.body;
+
+    if (typeof enabled === 'boolean') {
+        KINDLE_FRONTLIGHT.enabled = enabled;
+    }
+
+    if (typeof brightness === 'number' && brightness >= 0 && brightness <= 24) {
+        KINDLE_FRONTLIGHT.brightness = brightness;
+    }
+
+    console.log(`Frontlight updated: ${KINDLE_FRONTLIGHT.enabled ? 'ON' : 'OFF'} @ brightness ${KINDLE_FRONTLIGHT.brightness}`);
+    res.json({ success: true, ...KINDLE_FRONTLIGHT });
+});
+
 // Legacy endpoint for backward compatibility
 app.post('/api/config/paid-api', (req, res) => {
     const { enabled } = req.body;
@@ -934,6 +1338,28 @@ app.post('/api/config/paid-api', (req, res) => {
 // Legacy endpoint for backward compatibility
 app.get('/api/config/paid-api', (req, res) => {
     res.json({ enabled: API_MODE === 'paid' });
+});
+
+// Location configuration endpoint
+app.get('/api/config/location', (req, res) => {
+    res.json({
+        latitude: LOCATION.latitude,
+        longitude: LOCATION.longitude,
+        name: LOCATION.name
+    });
+});
+
+app.post('/api/config/location', (req, res) => {
+    const { latitude, longitude, name } = req.body;
+    if (typeof latitude === 'number' && typeof longitude === 'number') {
+        LOCATION.latitude = latitude;
+        LOCATION.longitude = longitude;
+        if (name) LOCATION.name = name;
+        console.log(`Location updated: ${latitude}, ${longitude}`);
+        res.json({ success: true, ...LOCATION });
+    } else {
+        res.status(400).json({ error: 'Invalid coordinates' });
+    }
 });
 
 // Flight Info Proxy (Route & Extra Data)

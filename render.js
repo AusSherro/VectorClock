@@ -1,25 +1,69 @@
 /**
- * E-Ink Renderer for Raspberry Pi
+ * E-Ink Renderer for Raspberry Pi / Kindle
  * Uses Puppeteer to capture the Flight Tracker page as a monochrome image
- * Designed for Waveshare 4.26" E-Ink HAT (800x480)
+ * Designed for Waveshare 4.26" E-Ink HAT (800x480) or Kindle Paperwhite
  */
 
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
 
+// ═══════════════════════════════════════════════════════════════
+// ANSI Colors & Styling
+// ═══════════════════════════════════════════════════════════════
+const c = {
+    reset: '\x1b[0m',
+    bold: '\x1b[1m',
+    dim: '\x1b[2m',
+    cyan: '\x1b[36m',
+    yellow: '\x1b[33m',
+    green: '\x1b[32m',
+    red: '\x1b[31m',
+    magenta: '\x1b[35m',
+    blue: '\x1b[34m',
+    white: '\x1b[37m',
+    gray: '\x1b[90m',
+};
+
+const styled = (text, ...styles) => styles.join('') + text + c.reset;
+const log = {
+    success: (msg) => console.log(styled(`  ✓ ${msg}`, c.green)),
+    error: (msg) => console.log(styled(`  ✗ ${msg}`, c.red)),
+    info: (msg) => console.log(styled(`  ℹ ${msg}`, c.cyan)),
+    warn: (msg) => console.log(styled(`  ⚠ ${msg}`, c.yellow)),
+    frame: (msg) => console.log(styled(`  📸 ${msg}`, c.magenta)),
+    time: () => styled(`[${new Date().toLocaleTimeString()}]`, c.dim),
+};
+
+// Try to load sharp for Kindle rotation (optional dependency)
+let sharp;
+try {
+    sharp = require('sharp');
+} catch (e) {
+    sharp = null;
+}
+
 // Configuration
+const KINDLE_MODE = process.env.KINDLE_MODE === 'true';
+
 const CONFIG = {
     URL: 'http://localhost:3000/',
-    VIEWPORT: {
+    VIEWPORT: KINDLE_MODE ? {
+        width: 800,
+        height: 480,
+        deviceScaleFactor: 1.8
+    } : {
         width: 800,
         height: 480,
         deviceScaleFactor: 1
     },
+    KINDLE_WIDTH: 1072,
+    KINDLE_HEIGHT: 1448,
     OUTPUT_DIR: path.join(__dirname, 'screenshots'),
     OUTPUT_FILE: 'eink_frame.png',
-    REFRESH_INTERVAL_MS: 10000, // 10 seconds
-    GRAYSCALE: true
+    REFRESH_INTERVAL_MS: 15000,
+    GRAYSCALE: true,
+    KINDLE_MODE: KINDLE_MODE
 };
 
 // Ensure output directory exists
@@ -68,16 +112,32 @@ async function cleanupDOM(page) {
  */
 async function captureFrame(page) {
     const outputPath = path.join(CONFIG.OUTPUT_DIR, CONFIG.OUTPUT_FILE);
+    const tempPath = path.join(CONFIG.OUTPUT_DIR, 'temp_frame.png');
 
     // Clean up DOM before capture
     await cleanupDOM(page);
 
-    // Wait for data to fetch (API calls can take 1-3s)
+    // Wait for page JavaScript to initialize (location + first flight fetch)
+    // app.js initLocation() calls fetchFlights() automatically after getting location
+    // We just need to wait for that natural flow to complete
     await page.waitForTimeout(5000);
+
+    // Check if flight info is visible
+    const hasFlightInfo = await page.evaluate(() => {
+        const topInfo = document.getElementById('top-info');
+        return topInfo && !topInfo.classList.contains('hidden');
+    });
+
+    if (hasFlightInfo) {
+        log.info('Flight data detected in DOM');
+    }
+
+    // For Kindle mode, capture to temp file first for rotation
+    const capturePath = (CONFIG.KINDLE_MODE && sharp) ? tempPath : outputPath;
 
     // Capture screenshot
     await page.screenshot({
-        path: outputPath,
+        path: capturePath,
         type: 'png',
         fullPage: false,
         clip: {
@@ -88,7 +148,25 @@ async function captureFrame(page) {
         }
     });
 
-    console.log(`[${new Date().toLocaleTimeString()}] Frame captured: ${outputPath}`);
+    // For Kindle: rotate 90° clockwise, resize to fill screen, convert to 8-bit grayscale
+    // Kindle eips requires 8-bit grayscale PNG without alpha channel at exact framebuffer size
+    if (CONFIG.KINDLE_MODE && sharp) {
+        await sharp(capturePath)
+            .rotate(90)                        // Rotate for landscape viewing
+            .resize(CONFIG.KINDLE_WIDTH, CONFIG.KINDLE_HEIGHT, { fit: 'fill' })  // Fill exact framebuffer
+            .removeAlpha()                     // Remove alpha channel
+            .grayscale()                       // Convert to grayscale
+            .png({ compressionLevel: 9 })
+            .toColourspace('b-w')              // Force to 8-bit grayscale
+            .toFile(outputPath);
+
+        // Clean up temp file
+        try { fs.unlinkSync(tempPath); } catch (e) { }
+
+        console.log(`${log.time()} ${styled('Kindle frame ready', c.magenta)}`);
+    } else {
+        console.log(`${log.time()} ${styled('Frame captured', c.green)}`);
+    }
 
     return outputPath;
 }
@@ -103,7 +181,7 @@ async function convertToMonochrome(imagePath) {
     // sharp(imagePath).grayscale().threshold(128).toFile(outputPath)
 
     // For now, we return the original PNG which works with most E-Ink drivers
-    console.log(`Image ready for E-Ink display: ${imagePath}`);
+    log.success(`Image ready for E-Ink display`);
     return imagePath;
 }
 
@@ -111,13 +189,32 @@ async function convertToMonochrome(imagePath) {
  * Main render loop
  */
 async function startRenderer() {
-    console.log('╔════════════════════════════════════════════╗');
-    console.log('║     E-Ink Renderer Started                 ║');
-    console.log('╠════════════════════════════════════════════╣');
-    console.log(`║  Target: ${CONFIG.URL.padEnd(32)}║`);
-    console.log(`║  Viewport: ${CONFIG.VIEWPORT.width}x${CONFIG.VIEWPORT.height}                       ║`);
-    console.log(`║  Refresh: Every ${CONFIG.REFRESH_INTERVAL_MS / 1000}s                      ║`);
-    console.log('╚════════════════════════════════════════════╝');
+    const modeLabel = CONFIG.KINDLE_MODE ? 'Kindle' : 'E-Ink';
+    const modeIcon = CONFIG.KINDLE_MODE ? '📱' : '🖥️';
+    const modeColor = CONFIG.KINDLE_MODE ? c.yellow : c.cyan;
+
+    console.log('');
+    console.log(styled('  ╔═══════════════════════════════════════════════════════╗', modeColor));
+    console.log(styled('  ║', modeColor) + styled(`  ${modeIcon}  ${modeLabel.toUpperCase()} RENDERER`, c.bold, c.white) + '                         ' + styled('║', modeColor));
+    console.log(styled('  ╠═══════════════════════════════════════════════════════╣', modeColor));
+    console.log(styled('  ║', modeColor) + `  ${styled('Target:', c.dim)}   ${styled(CONFIG.URL, c.white)}`.padEnd(66) + styled('║', modeColor));
+    console.log(styled('  ║', modeColor) + `  ${styled('Size:', c.dim)}     ${styled(`${CONFIG.VIEWPORT.width}×${CONFIG.VIEWPORT.height}`, c.green)} @ ${styled(`${CONFIG.VIEWPORT.deviceScaleFactor}x`, c.yellow)} scale`.padEnd(66) + styled('║', modeColor));
+    console.log(styled('  ║', modeColor) + `  ${styled('Refresh:', c.dim)}  Every ${styled(`${CONFIG.REFRESH_INTERVAL_MS / 1000}s`, c.cyan)}`.padEnd(68) + styled('║', modeColor));
+    console.log(styled('  ╚═══════════════════════════════════════════════════════╝', modeColor));
+    console.log('');
+
+    // Get location from server config for geolocation override
+    let geoLocation = { latitude: -33.9117, longitude: 151.1552 };
+    try {
+        const configResponse = await fetch('http://localhost:3000/api/config/location');
+        if (configResponse.ok) {
+            const configData = await configResponse.json();
+            geoLocation = { latitude: configData.latitude, longitude: configData.longitude };
+            log.success(`Location: ${configData.latitude}, ${configData.longitude}`);
+        }
+    } catch (e) {
+        log.warn('Using default location (Sydney)');
+    }
 
     // Launch browser
     const browser = await puppeteer.launch({
@@ -135,16 +232,21 @@ async function startRenderer() {
     const page = await browser.newPage();
     await page.setViewport(CONFIG.VIEWPORT);
 
+    // Grant geolocation permission and set coordinates
+    const context = browser.defaultBrowserContext();
+    await context.overridePermissions('http://localhost:3000', ['geolocation']);
+    await page.setGeolocation(geoLocation);
+
     // Navigate to the page
     try {
         await page.goto(CONFIG.URL, {
             waitUntil: 'networkidle2',
             timeout: 30000
         });
-        console.log('Page loaded successfully');
+        log.success('Page loaded successfully');
     } catch (error) {
-        console.error('Failed to load page:', error.message);
-        console.log('Make sure the server is running: npm start');
+        log.error(`Failed to load page: ${error.message}`);
+        log.warn('Make sure the server is running: npm start');
         await browser.close();
         process.exit(1);
     }
@@ -159,24 +261,32 @@ async function startRenderer() {
         try { fs.writeFileSync(triggerFile, ''); } catch (e) { }
     }
 
-    // Watch for changes to trigger file
+    // Watch for changes to trigger file (with debounce)
+    let lastTriggerTime = 0;
+    const TRIGGER_DEBOUNCE_MS = 5000; // 5 second cooldown between triggers
+
     try {
         fs.watch(triggerFile, async (eventType) => {
             if (eventType === 'change') {
-                console.log(`[${new Date().toLocaleTimeString()}] Trigger received, updating...`);
+                const now = Date.now();
+                if (now - lastTriggerTime < TRIGGER_DEBOUNCE_MS) {
+                    return; // Skip - too soon since last trigger
+                }
+                lastTriggerTime = now;
+
+                console.log(`${log.time()} ${styled('Trigger received', c.yellow)}, updating...`);
                 try {
-                    // Slight delay to allow server to finish writing if needed
-                    await new Promise(r => setTimeout(r, 100));
-                    await page.reload({ waitUntil: 'networkidle2' });
+                    // Don't reload! Just capture current page state
+                    await new Promise(r => setTimeout(r, 500));
                     await captureFrame(page);
                 } catch (e) {
-                    console.error('Trigger capture error:', e);
+                    log.error(`Capture error: ${e.message}`);
                 }
             }
         });
-        console.log('Watching for update triggers...');
+        log.info('Watching for update triggers...');
     } catch (e) {
-        console.error('Failed to setup file watcher:', e.message);
+        log.error(`Failed to setup file watcher: ${e.message}`);
     }
 
     // Set up periodic capture
@@ -186,13 +296,14 @@ async function startRenderer() {
             await page.reload({ waitUntil: 'networkidle2' });
             await captureFrame(page);
         } catch (error) {
-            console.error('Capture error:', error.message);
+            log.error(`Capture error: ${error.message}`);
         }
     }, CONFIG.REFRESH_INTERVAL_MS);
 
     // Handle graceful shutdown
     process.on('SIGINT', async () => {
-        console.log('\nShutting down renderer...');
+        console.log('');
+        log.warn('Shutting down renderer...');
         await browser.close();
         process.exit(0);
     });
@@ -205,6 +316,6 @@ async function startRenderer() {
 
 // Run the renderer
 startRenderer().catch(error => {
-    console.error('Renderer failed:', error);
+    log.error(`Renderer failed: ${error}`);
     process.exit(1);
 });

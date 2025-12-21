@@ -7,6 +7,12 @@ config.json
 # Runtime files
 trigger.txt
 flight_stats.json
+flight_stats.json.backup
+
+# SSH Keys (sensitive)
+id_rsa_kindle
+id_rsa_kindle.pub
+*.pem
 
 # Generated directories
 screenshots/

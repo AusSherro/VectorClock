@@ -1,6 +1,6 @@
 {
   "name": "vector-clock",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "VectorClock - E-Ink Flight Tracker with AirLabs, Rare Aircraft Detection, and Stats Dashboard",
   "main": "server.js",
   "scripts": {
@@ -12,10 +12,12 @@
     "setup": "node setup.js"
   },
   "dependencies": {
+    "axios": "^1.6.2",
     "better-sqlite3": "^11.0.0",
     "express": "^4.18.2",
     "node-fetch": "^2.7.0",
     "puppeteer": "^21.6.1",
-    "axios": "^1.6.2"
+    "sharp": "^0.34.5",
+    "ssh2": "^1.17.0"
   }
 }

@@ -120,6 +120,38 @@ const RARE_AIRCRAFT = [
     'PC21', // Pilatus PC-21 (RAAF trainer)
 ];
 
+// Special callsign prefixes for Australian operations
+// These are detected by callsign, not aircraft type
+const SPECIAL_CALLSIGNS = {
+    // === MILITARY ===
+    'ASY': { name: 'RAAF', category: 'Military', icon: '🎖️' },      // Royal Australian Air Force
+    'NAVY': { name: 'RAN', category: 'Military', icon: '⚓' },       // Royal Australian Navy
+    'ARMY': { name: 'Army', category: 'Military', icon: '🪖' },     // Australian Army Aviation
+
+    // === POLICE ===
+    'POL': { name: 'Police', category: 'Police', icon: '🚔' },       // Victoria Police / Generic
+    'POLAIR': { name: 'PolAir', category: 'Police', icon: '🚔' },    // NSW/QLD PolAir
+    'FPL': { name: 'Federal Police', category: 'Police', icon: '🚔' }, // Australian Federal Police
+
+    // === EMERGENCY SERVICES ===
+    'RSCU': { name: 'Rescue', category: 'Emergency', icon: '🚁' },   // Rescue helicopters
+    'AMBUL': { name: 'Ambulance', category: 'Emergency', icon: '🚑' },
+    'FIREBIRD': { name: 'Fire', category: 'Emergency', icon: '🔥' }, // CFA/RFS
+    'HELITAC': { name: 'Fire', category: 'Emergency', icon: '🔥' },  // Firefighting
+
+    // === COAST GUARD / BORDER ===
+    'BORDER': { name: 'Border Force', category: 'Government', icon: '🛂' },
+    'AMSA': { name: 'AMSA', category: 'Search & Rescue', icon: '🆘' }, // Maritime Safety
+
+    // === NEWS / MEDIA ===
+    'SKY': { name: 'News', category: 'Media', icon: '📺' },          // Sky News choppers
+    'NEWS': { name: 'News', category: 'Media', icon: '📺' },
+
+    // === SPECIAL ===
+    'LIFESAVER': { name: 'Surf Rescue', category: 'Emergency', icon: '🏖️' },
+    'VH-': { name: 'Private', category: 'Private', icon: '✈️' },     // All aussie registered
+};
+
 const state = {
     location: null,
     settings: {
@@ -145,7 +177,8 @@ const state = {
     partialUpdateCount: 0, // Counter for global refresh (anti-ghosting)
     // Aircraft tracking
     seenModels: new Set(), // Track unique aircraft models we've seen
-    apiQuota: { used: 0, limit: 1000, lastReset: null } // AirLabs quota tracking
+    apiQuota: { used: 0, limit: 1000, lastReset: null }, // AirLabs quota tracking
+    recentlyRecordedFlights: new Map() // Track recently recorded flights with timestamps (1 hour cooldown)
 };
 
 // ==========================================
@@ -684,10 +717,43 @@ async function fetchFlightRoute(callsign) {
     const cleanCallsign = callsign.trim().replace(/\s+/g, '');
     if (!cleanCallsign || cleanCallsign === 'Unknown') return null;
 
-    // Quiet Hours: Block paid API calls between 23:00 and 05:00
+    // Quiet Hours: Block API calls between 23:00 and 05:00
     const hour = new Date().getHours();
     if (hour >= 23 || hour < 5) {
-        // console.log(`Quiet Hours (${hour}:00): Skipping API route lookup for ${cleanCallsign}`);
+        return null;
+    }
+
+    // ==========================================
+    // FREE MODE: Use server's /api/flight-info (AirLabs)
+    // ==========================================
+    if (state.settings.apiMode === 'free') {
+        console.log(`[AirLabs] Calling /api/flight-info/${cleanCallsign}...`);
+        try {
+            const response = await fetch(`/api/flight-info/${cleanCallsign}`);
+            if (response.ok) {
+                const data = await response.json();
+                console.log(`[AirLabs] Response for ${cleanCallsign}:`, data);
+                if (data && !data.notFound && !data.error) {
+                    const route = {
+                        departure: data.origin,
+                        arrival: data.destination,
+                        airline: data.airline || null,
+                        aircraft: data.aircraft || null,
+                        source: 'airlabs'
+                    };
+                    routeCache.set(callsign, route);
+                    console.log(`[AirLabs] ✓ Route found for ${callsign} (${data.origin} → ${data.destination})`);
+                    return route;
+                } else {
+                    // Cache negative result
+                    routeCache.set(callsign, { notFound: true });
+                    console.log(`[AirLabs] Flight ${cleanCallsign} not found in AirLabs database`);
+                    return null;
+                }
+            }
+        } catch (e) {
+            console.log('[AirLabs] Route lookup failed:', e);
+        }
         return null;
     }
 
@@ -1088,13 +1154,32 @@ function startFlightRotation() {
 async function recordFlightSighting(flight, routeInfo = null) {
     if (!flight || !flight.callsign) return;
 
+    // Check cooldown - only record each flight once per hour
+    const COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
+    const now = Date.now();
+    const lastRecorded = state.recentlyRecordedFlights.get(flight.callsign);
+
+    if (lastRecorded && (now - lastRecorded) < COOLDOWN_MS) {
+        // Skip - already recorded within the last hour
+        return;
+    }
+
     try {
         // Get typecode from route info or local aircraft data
         const typecode = routeInfo?.aircraftCode || flight.typecode || null;
         const aircraft = routeInfo?.aircraft || flight.model || null;
 
-        // Check if rare
+        // Check if rare (by aircraft type)
         const isRare = typecode && RARE_AIRCRAFT.some(code => typecode.startsWith(code));
+
+        // Check if special callsign (Police, Military, Emergency, etc.)
+        let specialInfo = null;
+        for (const [prefix, info] of Object.entries(SPECIAL_CALLSIGNS)) {
+            if (flight.callsign.toUpperCase().startsWith(prefix)) {
+                specialInfo = info;
+                break;
+            }
+        }
 
         const payload = {
             callsign: flight.callsign,
@@ -1105,7 +1190,10 @@ async function recordFlightSighting(flight, routeInfo = null) {
             aircraft: aircraft,
             typecode: typecode,
             country: flight.originCountry,
-            rare: isRare || undefined
+            rare: isRare || undefined,
+            // New: Special callsign info
+            special: specialInfo ? specialInfo.category : undefined,
+            specialName: specialInfo ? specialInfo.name : undefined
         };
 
         await fetch('/api/stats', {
@@ -1113,6 +1201,17 @@ async function recordFlightSighting(flight, routeInfo = null) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
+
+        // Mark as recorded with current timestamp
+        state.recentlyRecordedFlights.set(flight.callsign, now);
+
+        // Clean up old entries (remove anything older than 1 hour)
+        for (const [callsign, timestamp] of state.recentlyRecordedFlights.entries()) {
+            if (now - timestamp > COOLDOWN_MS) {
+                state.recentlyRecordedFlights.delete(callsign);
+            }
+        }
+
         console.log(`Flight recorded: ${flight.callsign}${isRare ? ' ⭐RARE!' : ''}`);
     } catch (e) {
         console.error('Failed to record sighting:', e);
@@ -1377,6 +1476,9 @@ async function init() {
     // Initialize event listeners (settings only work in webview.html)
     initEventListeners();
 
+    // Initial server settings sync
+    await syncSettings();
+
     // Initialize E-Ink settings panel
     initEinkSettings();
 
@@ -1388,6 +1490,43 @@ async function init() {
 
     // Start periodic fetch
     startFetchInterval();
+
+    // Sync settings every 60 seconds
+    setInterval(syncSettings, 60000);
+}
+
+// Fetch settings from server (radius, interval)
+async function syncSettings() {
+    try {
+        // Radius
+        try {
+            const radiusRes = await fetch('/api/config/radius');
+            const radiusData = await radiusRes.json();
+            if (radiusData.radius) {
+                if (state.settings.radius !== radiusData.radius) {
+                    console.log(`Scan radius updated from server: ${radiusData.radius} km`);
+                    state.settings.radius = radiusData.radius;
+                }
+            }
+        } catch (e) { }
+
+        // Interval
+        try {
+            const intervalRes = await fetch('/api/config/interval');
+            const intervalData = await intervalRes.json();
+            if (intervalData.interval) {
+                if (state.settings.interval !== intervalData.interval) {
+                    console.log(`Scan interval updated from server: ${intervalData.interval} s`);
+                    state.settings.interval = intervalData.interval;
+                    // Restart loop with new interval
+                    startFetchInterval();
+                }
+            }
+        } catch (e) { }
+
+    } catch (e) {
+        console.error('Settings sync failed:', e);
+    }
 }
 
 // ==========================================
@@ -1407,11 +1546,24 @@ function initEinkSettings() {
         return;
     }
 
-    // Load saved radius
+    // Load saved radius FROM SERVER (shared with Puppeteer)
     if (radiusInput) {
-        const savedRadius = localStorage.getItem('einkRadius') || CONFIG.DEFAULT_RADIUS;
-        radiusInput.value = savedRadius;
-        state.settings.radius = parseInt(savedRadius);
+        // Try to fetch from server first (shared state)
+        fetch('/api/config/radius')
+            .then(r => r.json())
+            .then(data => {
+                if (data.radius) {
+                    radiusInput.value = data.radius;
+                    state.settings.radius = data.radius;
+                    console.log(`Radius loaded from server: ${data.radius} km`);
+                }
+            })
+            .catch(() => {
+                // Fallback to localStorage
+                const savedRadius = localStorage.getItem('einkRadius') || CONFIG.DEFAULT_RADIUS;
+                radiusInput.value = savedRadius;
+                state.settings.radius = parseInt(savedRadius);
+            });
 
         radiusInput.addEventListener('change', (e) => {
             let value = parseInt(e.target.value);
@@ -1420,7 +1572,13 @@ function initEinkSettings() {
             e.target.value = value;
             state.settings.radius = value;
             localStorage.setItem('einkRadius', value);
-            console.log(`Radius updated to ${value} km`);
+
+            // Sync to server so Puppeteer gets the same value
+            fetch('/api/config/radius', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ radius: value })
+            }).then(() => console.log(`Radius synced to server: ${value} km`));
         });
     }
 

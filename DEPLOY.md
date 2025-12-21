@@ -88,3 +88,72 @@ Enable and start:
 sudo systemctl enable vectorclock
 sudo systemctl start vectorclock
 ```
+
+---
+
+## Kindle Paperwhite Display (Temporary/Testing)
+
+Use a jailbroken Kindle Paperwhite as an E-Ink display before buying dedicated hardware.
+
+### Requirements
+- Kindle Paperwhite 7th gen (jailbroken)
+- USBNetwork extension installed
+- SSH key configured at `~/.ssh/id_rsa_kindle`
+
+### Kindle Setup
+1. Jailbreak the Kindle using [kindlemodding.org](https://kindlemodding.org)
+2. Install KUAL and USBNetwork
+3. Enable WiFi SSH: Type `;un` in Kindle search bar
+4. Configure SSH key authentication:
+   ```bash
+   ssh-keygen -t rsa -f ~/.ssh/id_rsa_kindle
+   # Copy public key to Kindle's /mnt/us/usbnet/etc/authorized_keys
+   ```
+
+### 3. Remote Configuration (NEW)
+You can configure settings without SSH by visiting the Settings page:
+`http://<pi-ip>:3000/settings.html`
+
+- **Scan Radius**: Adjust coverage area (default 5km)
+- **Scan Interval**: Adjust update frequency (default 30s)
+- **API Mode**: Toggle between Free/Paid/Off
+- **Kindle Config**: Set IP and monitoring options for the display
+
+### 4. Kindle Connection Stability (NEW)
+The system now includes auto-wake and keep-alive features to prevent the Kindle from sleeping or timing out.
+- SSH Keep-Alive packets sent every 30s
+- `lipc-set-prop` wake commands sent before every push
+- Auto-retry logic for connection drops
+
+If connection still fails, check:
+1.  **USBNetwork**: Ensure it's enabled (`;un` in search bar, then toggle to "USBNetwork")
+2.  **WiFi Prevent Sleep**: Install the "Prevent Screen Saver" KUAL extension or run:
+    ```bash
+    lipc-set-prop com.lab126.powerd preventScreenSaver 1
+    ```
+    (The script attempts to run this automatically via SSH)
+
+### Running
+```bash
+npm run kindle
+```
+
+This will:
+1. Start the server on port 3000
+2. Render at 800x480 with 1.8x scale (fills Kindle screen)
+3. Rotate 90° for landscape viewing
+4. Convert to 8-bit grayscale (required by eips)
+5. Push to Kindle every 15 seconds
+
+### Configuration
+Edit `kindle-display.js` to change:
+- `KINDLE_IP` - Your Kindle's IP address (default: 192.168.68.123)
+- `PUSH_INTERVAL_MS` - Update frequency (default: 15000ms)
+
+### Troubleshooting
+- **Connection timeout**: Wake up Kindle, re-enable USBNetwork (`;un`)
+- **White screen**: Image format issue - ensure 8-bit grayscale
+- **Small image**: Ensure render.js has correct scale factor (1.8x)
+
+> **Note**: The main `npm start` and `npm run eink` commands are NOT affected by Kindle changes. They work with the standard Waveshare E-Ink display.
+

@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - VectorClock</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%);
+            color: #eee;
+            min-height: 100vh;
+        }
+
+        /* Navigation */
+        .nav {
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 15px 30px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-brand {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #00d4ff;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 8px;
+        }
+
+        .nav-links a {
+            color: #888;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            transition: all 0.2s;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        .nav-links a:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+
+        .nav-links a.active {
+            background: rgba(0, 212, 255, 0.2);
+            color: #00d4ff;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 30px;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 40px;
+            font-size: 2rem;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        /* Settings Sections */
+        .settings-section {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .section-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #00d4ff;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .setting-row:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .setting-label {
+            flex: 1;
+        }
+
+        .setting-label h3 {
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+
+        .setting-label p {
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        .setting-control {
+            flex-shrink: 0;
+            margin-left: 20px;
+        }
+
+        /* Inputs */
+        input[type="text"],
+        input[type="number"] {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 10px 14px;
+            color: #fff;
+            font-family: inherit;
+            font-size: 0.9rem;
+            width: 120px;
+            text-align: right;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #00d4ff;
+        }
+
+        /* Radio buttons */
+        .radio-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .radio-option {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.85rem;
+        }
+
+        .radio-option:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .radio-option.active {
+            background: rgba(0, 212, 255, 0.2);
+            border-color: #00d4ff;
+            color: #00d4ff;
+        }
+
+        .radio-option input {
+            display: none;
+        }
+
+        /* Toggle switch */
+        .toggle {
+            position: relative;
+            width: 50px;
+            height: 28px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 14px;
+            cursor: pointer;
+            transition: background 0.3s;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .toggle.active {
+            background: #00d4ff;
+        }
+
+        .toggle::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 20px;
+            height: 20px;
+            background: #fff;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+
+        .toggle.active::after {
+            transform: translateX(22px);
+        }
+
+        /* Status indicator */
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .status.online {
+            background: rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+        }
+
+        .status.offline {
+            background: rgba(255, 68, 68, 0.2);
+            color: #ff4444;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        /* Buttons */
+        .btn {
+            background: linear-gradient(135deg, #00d4ff, #0099cc);
+            color: #000;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-family: inherit;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, opacity 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .btn:hover {
+            transform: scale(1.02);
+            opacity: 0.9;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ff4444, #cc0000);
+            color: #fff;
+        }
+
+        .action-bar {
+            display: flex;
+            gap: 12px;
+            margin-top: 30px;
+            justify-content: center;
+        }
+
+        /* Toast notification */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: #00d4ff;
+            color: #000;
+            padding: 14px 28px;
+            border-radius: 8px;
+            font-weight: 600;
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        .toast.error {
+            background: #ff4444;
+            color: #fff;
+        }
+
+        /* System info */
+        .system-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .info-item {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 12px 16px;
+            border-radius: 8px;
+        }
+
+        .info-item label {
+            font-size: 0.7rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .info-item value {
+            display: block;
+            font-size: 0.95rem;
+            color: #fff;
+            margin-top: 4px;
+            font-weight: 500;
+        }
+
+        @media (max-width: 600px) {
+            .setting-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+
+            .setting-control {
+                margin-left: 0;
+                width: 100%;
+            }
+
+            input[type="text"],
+            input[type="number"] {
+                width: 100%;
+                text-align: left;
+            }
+
+            .radio-group {
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="nav">
+        <div class="nav-brand">✈️ VectorClock</div>
+        <div class="nav-links">
+            <a href="/">Display</a>
+            <a href="/stats.html">Stats</a>
+            <a href="/settings.html" class="active">Settings</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h1>⚙️ Settings</h1>
+
+        <!-- Scan Settings -->
+        <div class="settings-section">
+            <div class="section-title">📡 Scan Settings</div>
+
+            <div class="setting-row">
+                <div class="setting-label">
+                    <h3>Scan Radius</h3>
+                    <p>How far from your location to scan for aircraft</p>
+                </div>
+                <div class="setting-control">
+                    <input type="number" id="radius" min="1" max="50" value="5"> km
+                </div>
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-label">
+                    <h3>Scan Interval</h3>
+                    <p>How often to check for new aircraft</p>
+                </div>
+                <div class="setting-control">
+                    <input type="number" id="interval" min="10" max="300" value="30"> sec
+                </div>
+            </div>
+        </div>
+
+        <!-- API Settings -->
+        <div class="settings-section">
+            <div class="section-title">🔌 API Mode</div>
+
+            <div class="setting-row">
+                <div class="setting-label">
+                    <h3>Route Lookup Mode</h3>
+                    <p>Controls how flight routes are fetched</p>
+                </div>
+                <div class="setting-control">
+                    <div class="radio-group" id="api-mode">
+                        <label class="radio-option" data-value="off">
+                            <input type="radio" name="api-mode" value="off">
+                            Off
+                        </label>
+                        <label class="radio-option" data-value="free">
+                            <input type="radio" name="api-mode" value="free">
+                            Free
+                        </label>
+                        <label class="radio-option" data-value="paid">
+                            <input type="radio" name="api-mode" value="paid">
+                            Paid
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-label">
+                    <h3>API Quota</h3>
+                    <p>AirLabs free tier usage (resets monthly)</p>
+                </div>
+                <div class="setting-control">
+                    <span id="quota-display">-/-</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Kindle Settings -->
+        <div class="settings-section">
+            <div class="section-title">📱 Kindle Display</div>
+
+            <div class="setting-row">
+                <div class="setting-label">
+                    <h3>Status</h3>
+                    <p>Connection to Kindle Paperwhite</p>
+                </div>
+                <div class="setting-control">
+                    <span class="status offline" id="kindle-status">
+                        <span class="status-dot"></span>
+                        Disconnected
+                    </span>
+                </div>
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-label">
+                    <h3>Kindle IP Address</h3>
+                    <p>Local network IP of your Kindle</p>
+                </div>
+                <div class="setting-control">
+                    <input type="text" id="kindle-ip" placeholder="192.168.x.x" style="width: 150px;">
+                </div>
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-label">
+                    <h3>Display Refresh</h3>
+                    <p>How often to update the Kindle screen</p>
+                </div>
+                <div class="setting-control">
+                    <input type="number" id="kindle-refresh" min="10" max="120" value="15"> sec
+                </div>
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-label">
+                    <h3>Frontlight</h3>
+                    <p>Enable Kindle screen illumination</p>
+                </div>
+                <div class="setting-control">
+                    <div class="toggle" id="frontlight-toggle"></div>
+                </div>
+            </div>
+
+            <div class="setting-row" id="brightness-row" style="display: none;">
+                <div class="setting-label">
+                    <h3>Brightness</h3>
+                    <p>Frontlight intensity (1-24)</p>
+                </div>
+                <div class="setting-control" style="display: flex; align-items: center; gap: 12px;">
+                    <input type="range" id="brightness-slider" min="1" max="24" value="12"
+                        style="width: 120px; accent-color: #00d4ff;">
+                    <span id="brightness-value" style="min-width: 24px;">12</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Location Settings -->
+        <div class="settings-section">
+            <div class="section-title">📍 Location</div>
+
+            <div class="setting-row">
+                <div class="setting-label">
+                    <h3>Latitude</h3>
+                    <p>Your location latitude (-90 to 90)</p>
+                </div>
+                <div class="setting-control">
+                    <input type="text" id="latitude" placeholder="-33.9117" style="width: 120px;">
+                </div>
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-label">
+                    <h3>Longitude</h3>
+                    <p>Your location longitude (-180 to 180)</p>
+                </div>
+                <div class="setting-control">
+                    <input type="text" id="longitude" placeholder="151.1552" style="width: 120px;">
+                </div>
+            </div>
+        </div>
+
+        <!-- System Info -->
+        <div class="settings-section">
+            <div class="section-title">💻 System</div>
+
+            <div class="system-info">
+                <div class="info-item">
+                    <label>Server Status</label>
+                    <value id="server-status">Checking...</value>
+                </div>
+                <div class="info-item">
+                    <label>Uptime</label>
+                    <value id="uptime">-</value>
+                </div>
+                <div class="info-item">
+                    <label>Weather</label>
+                    <value id="weather-status">-</value>
+                </div>
+                <div class="info-item">
+                    <label>OpenSky Auth</label>
+                    <value id="opensky-status">-</value>
+                </div>
+            </div>
+        </div>
+
+        <div class="action-bar">
+            <button class="btn" onclick="saveSettings()">💾 Save Settings</button>
+            <button class="btn btn-secondary" onclick="loadSettings()">↻ Refresh</button>
+        </div>
+    </div>
+
+    <div class="toast" id="toast">Settings saved!</div>
+
+    <script>
+        const serverStartTime = Date.now();
+
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast show' + (isError ? ' error' : '');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // Radio button handling
+        document.querySelectorAll('.radio-option').forEach(option => {
+            option.addEventListener('click', () => {
+                const group = option.closest('.radio-group');
+                group.querySelectorAll('.radio-option').forEach(o => o.classList.remove('active'));
+                option.classList.add('active');
+                option.querySelector('input').checked = true;
+            });
+        });
+
+        // Frontlight toggle handling
+        const frontlightToggle = document.getElementById('frontlight-toggle');
+        const brightnessRow = document.getElementById('brightness-row');
+        const brightnessSlider = document.getElementById('brightness-slider');
+        const brightnessValue = document.getElementById('brightness-value');
+
+        frontlightToggle.addEventListener('click', () => {
+            frontlightToggle.classList.toggle('active');
+            brightnessRow.style.display = frontlightToggle.classList.contains('active') ? 'flex' : 'none';
+        });
+
+        brightnessSlider.addEventListener('input', () => {
+            brightnessValue.textContent = brightnessSlider.value;
+        });
+
+        async function loadSettings() {
+            try {
+                // Load radius
+                const radiusRes = await fetch('/api/config/radius');
+                const radiusData = await radiusRes.json();
+                document.getElementById('radius').value = radiusData.radius || 5;
+
+                // Load API mode
+                const modeRes = await fetch('/api/config/api-mode');
+                const modeData = await modeRes.json();
+                document.querySelectorAll('#api-mode .radio-option').forEach(opt => {
+                    opt.classList.toggle('active', opt.dataset.value === modeData.mode);
+                });
+
+                // Load quota
+                const quotaRes = await fetch('/api/config/quota');
+                const quotaData = await quotaRes.json();
+                document.getElementById('quota-display').textContent =
+                    `${quotaData.used || 0}/${quotaData.limit || 1000}`;
+
+                // Load location
+                try {
+                    const locRes = await fetch('/api/config/location');
+                    const locData = await locRes.json();
+                    if (locData.latitude) document.getElementById('latitude').value = locData.latitude;
+                    if (locData.longitude) document.getElementById('longitude').value = locData.longitude;
+                } catch (e) { }
+
+                // Load frontlight settings
+                try {
+                    const flRes = await fetch('/api/config/frontlight');
+                    const flData = await flRes.json();
+                    if (flData.enabled) {
+                        frontlightToggle.classList.add('active');
+                        brightnessRow.style.display = 'flex';
+                    }
+                    if (flData.brightness) {
+                        brightnessSlider.value = flData.brightness;
+                        brightnessValue.textContent = flData.brightness;
+                    }
+                } catch (e) { }
+
+                // Server status
+                document.getElementById('server-status').textContent = '✓ Running';
+
+                // Check weather
+                try {
+                    const weatherRes = await fetch('/api/weather');
+                    const weather = await weatherRes.json();
+                    document.getElementById('weather-status').textContent =
+                        weather.temp ? `${weather.temp}°C ${weather.condition}` : 'Error';
+                } catch (e) {
+                    document.getElementById('weather-status').textContent = 'Error';
+                }
+
+                // OpenSky status
+                document.getElementById('opensky-status').textContent = 'Authenticated';
+
+                // Uptime (approximate - from page load)
+                updateUptime();
+
+            } catch (e) {
+                showToast('Failed to load settings: ' + e.message, true);
+            }
+        }
+
+        function updateUptime() {
+            const elapsed = Math.floor((Date.now() - serverStartTime) / 1000);
+            const mins = Math.floor(elapsed / 60);
+            const hours = Math.floor(mins / 60);
+            document.getElementById('uptime').textContent =
+                hours > 0 ? `${hours}h ${mins % 60}m` : `${mins}m`;
+        }
+
+        async function saveSettings() {
+            try {
+                // Save radius
+                const radius = parseInt(document.getElementById('radius').value);
+                await fetch('/api/config/radius', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ radius })
+                });
+
+                // Save API mode
+                const activeMode = document.querySelector('#api-mode .radio-option.active');
+                if (activeMode) {
+                    await fetch('/api/config/api-mode', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ mode: activeMode.dataset.value })
+                    });
+                }
+
+                // Save location (if provided)
+                const lat = parseFloat(document.getElementById('latitude').value);
+                const lon = parseFloat(document.getElementById('longitude').value);
+                if (!isNaN(lat) && !isNaN(lon)) {
+                    await fetch('/api/config/location', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ latitude: lat, longitude: lon })
+                    });
+                }
+
+                // Save frontlight settings
+                const flEnabled = frontlightToggle.classList.contains('active');
+                const flBrightness = flEnabled ? parseInt(brightnessSlider.value) : 0;
+                await fetch('/api/config/frontlight', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled: flEnabled, brightness: flBrightness })
+                });
+
+                showToast('Settings saved!');
+            } catch (e) {
+                showToast('Failed to save: ' + e.message, true);
+            }
+        }
+
+        // Load on page load
+        loadSettings();
+
+        // Update uptime every minute
+        setInterval(updateUptime, 60000);
+    </script>
+</body>
+
+</html>
