@@ -8,6 +8,7 @@ const { Client } = require('ssh2');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const http = require('http');
 
 // ═══════════════════════════════════════════════════════════════
 // ANSI Colors & Styling
@@ -37,16 +38,72 @@ const log = {
     time: () => styled(`[${new Date().toLocaleTimeString()}]`, c.dim),
 };
 
-// Configuration
+// Configuration (defaults - will be updated from server)
 const CONFIG = {
-    KINDLE_IP: '192.168.68.123',
+    KINDLE_IP: '192.168.68.116',
     KINDLE_USER: 'root',
     SSH_KEY_PATH: path.join(os.homedir(), '.ssh', 'id_rsa_kindle'),
     REMOTE_PATH: '/tmp/vectorclock.png',
     LOCAL_IMAGE: path.join(__dirname, 'screenshots', 'eink_frame.png'),
     SSH_PORT: 22,
     PUSH_INTERVAL_MS: 15000,
+    SERVER_URL: 'http://localhost:3000'
 };
+
+/**
+ * Fetch Kindle configuration from server
+ */
+async function fetchKindleConfig() {
+    try {
+        const http = require('http');
+        const config = await new Promise((resolve) => {
+            http.get(`${CONFIG.SERVER_URL}/api/config/kindle`, (res) => {
+                let data = '';
+                res.on('data', chunk => data += chunk);
+                res.on('end', () => {
+                    try { resolve(JSON.parse(data)); }
+                    catch { resolve(null); }
+                });
+            }).on('error', () => resolve(null));
+        });
+
+        if (config) {
+            if (config.ip) CONFIG.KINDLE_IP = config.ip;
+            if (config.refreshInterval) CONFIG.PUSH_INTERVAL_MS = config.refreshInterval * 1000;
+            log.success(`Config from server: IP=${CONFIG.KINDLE_IP}, Interval=${CONFIG.PUSH_INTERVAL_MS / 1000}s`);
+        }
+    } catch (e) {
+        log.warn('Using default config (server not available)');
+    }
+}
+
+/**
+ * Send heartbeat to server
+ */
+function sendHeartbeat(connected, message) {
+    const data = JSON.stringify({ connected, message });
+    const options = {
+        hostname: 'localhost',
+        port: 3000,
+        path: '/api/kindle/heartbeat',
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': data.length
+        }
+    };
+
+    const req = http.request(options, (res) => {
+        // Heartbeat sent
+    });
+
+    req.on('error', (e) => {
+        // Quietly fail
+    });
+
+    req.write(data);
+    req.end();
+}
 
 let privateKey = null;
 let lastImageHash = null;
@@ -148,11 +205,18 @@ async function wakeKindle() {
 async function setFrontlight(level = 0) {
     try {
         const clampedLevel = Math.max(0, Math.min(24, level));
-        await execCommand(`lipc-set-prop com.lab126.powerd flIntensity ${clampedLevel}`);
+
+        // Set intensity (0 = off, 1-24 = brightness levels)
+        // Note: flEnable not used on Paperwhite - intensity alone controls it
+        const result = await execCommand(`lipc-set-prop com.lab126.powerd flIntensity ${clampedLevel}`);
+        if (result.stderr) {
+            log.warn(`Frontlight stderr: ${result.stderr}`);
+        }
+
         log.info(`Frontlight: ${styled(String(clampedLevel), c.yellow)}/24`);
         return true;
     } catch (e) {
-        log.warn('Frontlight command failed');
+        log.warn(`Frontlight command failed: ${e.message}`);
         return false;
     }
 }
@@ -188,10 +252,11 @@ async function syncFrontlight() {
             }).on('error', () => resolve({ enabled: false, brightness: 0 }));
         });
 
+        log.info(`Frontlight settings: enabled=${flSettings.enabled}, brightness=${flSettings.brightness}`);
         const brightness = flSettings.enabled ? flSettings.brightness : 0;
         await setFrontlight(brightness);
     } catch (e) {
-        // Silently fail - will retry next cycle
+        log.warn(`Frontlight sync error: ${e.message}`);
     }
 }
 
@@ -251,6 +316,7 @@ async function pushToKindle() {
                                     sftp.end();
                                     client.end();
                                     resolve();
+                                    sendHeartbeat(true, 'Active');
                                 });
 
                                 stream.on('data', (data) => log.info(`→ ${data}`));
@@ -265,6 +331,7 @@ async function pushToKindle() {
         });
     } catch (e) {
         log.error(`Connection error: ${e.message}`);
+        sendHeartbeat(false, e.message);
 
         if (e.message.includes('Timed out') || e.message.includes('Connection refused')) {
             log.warn('Retrying in 5 seconds...');
@@ -290,6 +357,9 @@ async function clearScreen() {
  * Start the push loop
  */
 async function startPushLoop() {
+    // Fetch config from server first
+    await fetchKindleConfig();
+
     console.log('');
     console.log(styled('  ╔═══════════════════════════════════════════════════════╗', c.magenta));
     console.log(styled('  ║', c.magenta) + styled('  📤  KINDLE DISPLAY PUSH                              ', c.bold, c.white) + styled('║', c.magenta));
@@ -309,6 +379,7 @@ async function startPushLoop() {
         await syncFrontlight();
     } catch (e) {
         log.error(`Cannot connect to Kindle: ${e.message}`);
+        sendHeartbeat(false, e.message);
         console.log('');
         console.log(styled('  ─── Troubleshooting ───', c.yellow, c.bold));
         console.log(styled('  1. Is the Kindle connected to WiFi?', c.dim));
@@ -332,6 +403,7 @@ async function startPushLoop() {
             await pushToKindle();
         } catch (e) {
             log.error(`Push loop error: ${e.message}`);
+            sendHeartbeat(false, e.message);
         }
     }, CONFIG.PUSH_INTERVAL_MS);
 }

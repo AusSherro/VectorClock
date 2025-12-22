@@ -1,5 +1,51 @@
 # Changelog
 
+## [1.5.1] - 2025-12-22 - Settings UI Overhaul
+
+### Added
+- **Kindle Heartbeat System**:
+  - Real-time connection status in Settings
+  - Script reports online/connected state to server
+  - Pulsing indicator when connected
+- **Flight Source Selection**:
+  - New `/api/config/flight-source` endpoint
+  - Choose between ADSB.lol and OpenSky
+
+### Changed
+- **Complete Settings Page Redesign**:
+  - Modern dark theme with colored section icons
+  - Improved toggle switches and sliders
+  - Better organized sections with headers
+  - Sticky save button bar
+  - Mobile-responsive layout
+- **Frontlight Auto-Save**: Toggle and slider changes save immediately
+- **Simplified frontlight control**: Removed unsupported `flEnable` command
+
+### Fixed
+- Kindle frontlight now works correctly on Paperwhite 7th gen
+- Removed duplicate catch block syntax errors in kindle-display.js
+
+---
+
+## [1.5.0] - 2025-12-22 - ADSB.lol & CLI Aesthetics
+
+### Added
+- **ADSB.lol Special Alerts**:
+  - Monitors for Military, Emergency (7700), and VIP aircraft worldwide (filtered by range)
+  - Dedicated banner alerts for special sightings
+- **CLI Visuals**:
+  - Beautiful ASCII art headers for all scripts
+  - Color-coded log output for better readability
+- **Kindle Frontlight Control**:
+  - Remote control of brightness and toggle via Settings
+  - Auto-syncs state on Kindle startup
+- **Fixes**:
+  - 1-hour cooldown for recording sightings (prevents duplicate log entries)
+  - "New" aircraft detection persistency fix
+  - Aircraft names now display full names in Stats (e.g., "Boeing C-17") instead of ICAO codes
+
+---
+
 ## [1.4.0] - 2025-12-21 - Stats Redesign & Remote Settings
 
 ### Added

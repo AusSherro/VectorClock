@@ -30,46 +30,196 @@ const CONFIG = {
 // ICAO airline codes to carrier names
 const AIRLINES = {
     // Australian carriers
-    'QFA': 'Qantas',
-    'QJE': 'Qantas', // QantasLink
-    'QLK': 'Qantas', // QantasLink
-    'JST': 'Jetstar',
-    'VOZ': 'Virgin Australia',
-    'REX': 'Rex Airlines',
-    'ANZ': 'Air New Zealand',
-    'SIA': 'Singapore Airlines',
-    'CPA': 'Cathay Pacific',
-    'UAE': 'Emirates',
-    'ETD': 'Etihad',
-    'QTR': 'Qatar Airways',
-    'MAS': 'Malaysia Airlines',
-    'SQ': 'Singapore Airlines',
-    'CX': 'Cathay Pacific',
-    'TGW': 'Scoot',
-    'AXM': 'AirAsia',
-    'CEB': 'Cebu Pacific',
-    'PAL': 'Philippine Airlines',
-    'GAR': 'Garuda Indonesia',
-    'THA': 'Thai Airways',
-    'JAL': 'Japan Airlines',
-    'ANA': 'All Nippon Airways',
-    'KAL': 'Korean Air',
-    'CAL': 'China Airlines',
-    'EVA': 'EVA Air',
-    'CCA': 'Air China',
-    'CES': 'China Eastern',
-    'CSN': 'China Southern',
-    'HVN': 'Vietnam Airlines',
-    'AAL': 'American Airlines',
-    'UAL': 'United Airlines',
-    'DAL': 'Delta Air Lines',
-    'BAW': 'British Airways',
-    'DLH': 'Lufthansa',
-    'AFR': 'Air France',
-    'KLM': 'KLM',
-    'FJI': 'Fiji Airways',
-    'NZM': 'Mount Cook Airline'
+    'QFA': 'Qantas', 'QJE': 'Qantas', 'QLK': 'Qantas',
+    'JST': 'Jetstar', 'JQ': 'Jetstar',
+    'VOZ': 'Virgin Australia', 'VA': 'Virgin Australia',
+    'REX': 'Rex Airlines', 'ZL': 'Rex Airlines',
+    'TGG': 'Tigerair Australia',
+    'BNZ': 'Bonza',
+
+    // New Zealand
+    'ANZ': 'Air New Zealand', 'NZ': 'Air New Zealand',
+    'NZM': 'Mount Cook Airline',
+
+    // Southeast Asia
+    'SIA': 'Singapore Airlines', 'SQ': 'Singapore Airlines',
+    'TGW': 'Scoot', 'TR': 'Scoot',
+    'MAS': 'Malaysia Airlines', 'MH': 'Malaysia Airlines',
+    'AXM': 'AirAsia', 'AK': 'AirAsia', 'D7': 'AirAsia X',
+    'THA': 'Thai Airways', 'TG': 'Thai Airways',
+    'VJC': 'VietJet', 'VJ': 'VietJet',
+    'HVN': 'Vietnam Airlines', 'VN': 'Vietnam Airlines',
+    'GAR': 'Garuda Indonesia', 'GA': 'Garuda Indonesia',
+    'LNI': 'Lion Air', 'JT': 'Lion Air',
+    'CEB': 'Cebu Pacific', '5J': 'Cebu Pacific',
+    'PAL': 'Philippine Airlines', 'PR': 'Philippine Airlines',
+    'RBA': 'Royal Brunei', 'BI': 'Royal Brunei',
+
+    // East Asia
+    'CPA': 'Cathay Pacific', 'CX': 'Cathay Pacific',
+    'HKE': 'HK Express',
+    'JAL': 'Japan Airlines', 'JL': 'Japan Airlines',
+    'ANA': 'All Nippon Airways', 'NH': 'ANA',
+    'APJ': 'Peach Aviation',
+    'JJP': 'Jetstar Japan',
+    'KAL': 'Korean Air', 'KE': 'Korean Air',
+    'AAR': 'Asiana', 'OZ': 'Asiana',
+    'TWB': 'T\'way Air',
+    'JNA': 'Jin Air',
+
+    // China
+    'CCA': 'Air China', 'CA': 'Air China',
+    'CES': 'China Eastern', 'MU': 'China Eastern',
+    'CSN': 'China Southern', 'CZ': 'China Southern',
+    'CHH': 'Hainan Airlines', 'HU': 'Hainan Airlines',
+    'CSZ': 'Shenzhen Airlines', 'ZH': 'Shenzhen Airlines',
+    'CXA': 'Xiamen Airlines', 'MF': 'Xiamen Airlines',
+    'CDG': 'Shandong Airlines', 'SC': 'Shandong Airlines',
+    'CSC': 'Sichuan Airlines', '3U': 'Sichuan Airlines',
+    'GCR': 'Grand China Air', 'CN': 'Grand China Air',
+    'CQH': 'Spring Airlines', '9C': 'Spring Airlines',
+    'DKH': 'Juneyao Airlines', 'HO': 'Juneyao Airlines',
+    'CBJ': 'Beijing Capital', 'JD': 'Capital Airlines',
+    'LKE': 'Lucky Air', '8L': 'Lucky Air',
+    'GDC': 'Grandstar Cargo',
+
+    // Taiwan
+    'CAL': 'China Airlines', 'CI': 'China Airlines',
+    'EVA': 'EVA Air', 'BR': 'EVA Air',
+    'TTW': 'Tigerair Taiwan',
+    'SJX': 'Starlux', 'JX': 'Starlux',
+
+    // Middle East
+    'UAE': 'Emirates', 'EK': 'Emirates',
+    'ETD': 'Etihad', 'EY': 'Etihad',
+    'QTR': 'Qatar Airways', 'QR': 'Qatar Airways',
+    'GFA': 'Gulf Air', 'GF': 'Gulf Air',
+    'SVA': 'Saudia', 'SV': 'Saudia',
+    'OMA': 'Oman Air', 'WY': 'Oman Air',
+    'ELY': 'El Al', 'LY': 'El Al',
+    'THY': 'Turkish Airlines', 'TK': 'Turkish Airlines',
+
+    // South Asia
+    'AIC': 'Air India', 'AI': 'Air India',
+    'IGO': 'IndiGo', '6E': 'IndiGo',
+    'SEJ': 'SpiceJet', 'SG': 'SpiceJet',
+    'ALK': 'SriLankan', 'UL': 'SriLankan',
+
+    // Pacific
+    'FJI': 'Fiji Airways', 'FJ': 'Fiji Airways',
+    'NWC': 'Aircalin', 'SB': 'Aircalin',
+    'TPA': 'Air Tahiti', 'VT': 'Air Tahiti',
+    'NIG': 'Air Niugini', 'PX': 'Air Niugini',
+    'SOL': 'Solomon Airlines', 'IE': 'Solomon Airlines',
+    'AVN': 'Air Vanuatu', 'NF': 'Air Vanuatu',
+
+    // Americas
+    'AAL': 'American Airlines', 'AA': 'American',
+    'UAL': 'United Airlines', 'UA': 'United',
+    'DAL': 'Delta Air Lines', 'DL': 'Delta',
+    'SWA': 'Southwest', 'WN': 'Southwest',
+    'JBU': 'JetBlue', 'B6': 'JetBlue',
+    'NKS': 'Spirit', 'NK': 'Spirit',
+    'AAY': 'Allegiant', 'G4': 'Allegiant',
+    'FFT': 'Frontier', 'F9': 'Frontier',
+    'HAL': 'Hawaiian', 'HA': 'Hawaiian',
+    'ACA': 'Air Canada', 'AC': 'Air Canada',
+    'WJA': 'WestJet', 'WS': 'WestJet',
+    'TAM': 'LATAM Brasil', 'JJ': 'LATAM Brasil',
+    'LAN': 'LATAM', 'LA': 'LATAM',
+    'AVA': 'Avianca', 'AV': 'Avianca',
+    'CMP': 'Copa Airlines', 'CM': 'Copa',
+
+    // Europe
+    'BAW': 'British Airways', 'BA': 'British Airways',
+    'DLH': 'Lufthansa', 'LH': 'Lufthansa',
+    'AFR': 'Air France', 'AF': 'Air France',
+    'KLM': 'KLM', 'KL': 'KLM',
+    'IBE': 'Iberia', 'IB': 'Iberia',
+    'AZA': 'ITA Airways', 'AZ': 'ITA Airways',
+    'SWR': 'Swiss', 'LX': 'Swiss',
+    'AUA': 'Austrian', 'OS': 'Austrian',
+    'BEL': 'Brussels Airlines', 'SN': 'Brussels',
+    'TAP': 'TAP Portugal', 'TP': 'TAP',
+    'SAS': 'SAS', 'SK': 'SAS',
+    'FIN': 'Finnair', 'AY': 'Finnair',
+    'AEE': 'Aegean', 'A3': 'Aegean',
+    'LOT': 'LOT Polish', 'LO': 'LOT',
+    'CSA': 'Czech Airlines', 'OK': 'Czech',
+    'AFL': 'Aeroflot', 'SU': 'Aeroflot',
+    'VIR': 'Virgin Atlantic', 'VS': 'Virgin Atlantic',
+    'EZY': 'easyJet', 'U2': 'easyJet',
+    'RYR': 'Ryanair', 'FR': 'Ryanair',
+    'WZZ': 'Wizz Air', 'W6': 'Wizz Air',
+    'VLG': 'Vueling', 'VY': 'Vueling',
+    'NAX': 'Norwegian', 'DY': 'Norwegian',
+    'ICE': 'Icelandair', 'FI': 'Icelandair',
+
+    // Africa
+    'SAA': 'South African', 'SA': 'South African',
+    'ETH': 'Ethiopian', 'ET': 'Ethiopian',
+    'KQA': 'Kenya Airways', 'KQ': 'Kenya Airways',
+    'MSR': 'EgyptAir', 'MS': 'EgyptAir',
+    'RAM': 'Royal Air Maroc', 'AT': 'Royal Air Maroc'
 };
+
+// ICAO Type Code to Friendly Names (most common in AU)
+const ICAO_TYPE_NAMES = {
+    // Boeing
+    'B788': 'Boeing 787-8', 'B789': 'Boeing 787-9', 'B78X': 'Boeing 787-10',
+    'B737': 'Boeing 737', 'B738': 'Boeing 737-800', 'B739': 'Boeing 737-900',
+    'B38M': 'Boeing 737 MAX 8', 'B39M': 'Boeing 737 MAX 9',
+    'B77W': 'Boeing 777-300ER', 'B77L': 'Boeing 777-200LR', 'B772': 'Boeing 777-200',
+    'B744': 'Boeing 747-400', 'B748': 'Boeing 747-8',
+    // Airbus
+    'A388': 'Airbus A380', 'A359': 'Airbus A350-900', 'A35K': 'Airbus A350-1000',
+    'A333': 'Airbus A330-300', 'A332': 'Airbus A330-200', 'A339': 'Airbus A330-900neo',
+    'A321': 'Airbus A321', 'A21N': 'Airbus A321neo', 'A320': 'Airbus A320', 'A20N': 'Airbus A320neo',
+    'A319': 'Airbus A319',
+    // Regional
+    'E190': 'Embraer E190', 'E195': 'Embraer E195', 'E170': 'Embraer E170',
+    'DH8D': 'Dash 8-Q400', 'DH8C': 'Dash 8-Q300', 'AT76': 'ATR 72-600',
+    'CRJ7': 'CRJ-700', 'CRJ9': 'CRJ-900',
+    // Small/Private
+    'C172': 'Cessna 172', 'C208': 'Cessna Caravan', 'PC12': 'Pilatus PC-12',
+    'BE20': 'Beechcraft King Air', 'PA28': 'Piper Cherokee',
+    // Military
+    'C17': 'C-17 Globemaster', 'C130': 'C-130 Hercules', 'C30J': 'C-130J Super Hercules',
+    'E737': 'E-7A Wedgetail', 'P8': 'P-8A Poseidon', 'F35': 'F-35 Lightning II',
+    'FA18': 'F/A-18 Hornet', 'F18S': 'F/A-18F Super Hornet', 'HAWK': 'BAE Hawk',
+    'PC21': 'Pilatus PC-21', 'A332': 'KC-30A MRTT', 'KC30': 'KC-30A MRTT',
+    'C5': 'C-5M Galaxy', 'B52': 'B-52 Stratofortress', 'KC10': 'KC-10 Extender',
+    'KC35': 'KC-135 Stratotanker',
+    'A124': 'Antonov An-124', 'AN12': 'Antonov An-12',
+    // Classics
+    'A343': 'Airbus A340-300', 'A345': 'Airbus A340-500', 'A346': 'Airbus A340-600',
+    'MD11': 'McDonnell Douglas MD-11', 'DC10': 'McDonnell Douglas DC-10',
+    'L101': 'Lockheed L-1011', 'CONC': 'Concorde',
+    // VIP
+    'GLF6': 'Gulfstream G650', 'GL7T': 'Gulfstream G700', 'GLEX': 'Bombardier Global',
+    'G280': 'Gulfstream G280',
+    // Special
+    'A3ST': 'Airbus Beluga', 'BLCF': 'Boeing Dreamlifter'
+};
+
+// Helper to resolve aircraft names
+function getAircraftName(typeCode) {
+    if (!typeCode) return 'Unknown Aircraft';
+    // Direct match
+    if (ICAO_TYPE_NAMES[typeCode]) return ICAO_TYPE_NAMES[typeCode];
+
+    // Prefix matching for Boeing/Airbus generic
+    if (typeCode.startsWith('B78')) return 'Boeing 787 Dreamliner';
+    if (typeCode.startsWith('B77')) return 'Boeing 777';
+    if (typeCode.startsWith('B74')) return 'Boeing 747';
+    if (typeCode.startsWith('A38')) return 'Airbus A380';
+    if (typeCode.startsWith('A35')) return 'Airbus A350';
+    if (typeCode.startsWith('A34')) return 'Airbus A340';
+    if (typeCode.startsWith('A33')) return 'Airbus A330';
+    if (typeCode.startsWith('C130')) return 'C-130 Hercules';
+
+    return typeCode; // Fallback to code
+}
 
 // Rare/Special Aircraft Types (ICAO typecodes)
 // Uses startsWith() matching so 'B74' matches B744, B748, etc.
@@ -152,6 +302,35 @@ const SPECIAL_CALLSIGNS = {
     'VH-': { name: 'Private', category: 'Private', icon: '✈️' },     // All aussie registered
 };
 
+// Significant Squawk Codes (Transponder Codes)
+// Emergency codes - VERY important to highlight
+const EMERGENCY_SQUAWKS = {
+    '7500': { name: 'HIJACK', description: 'Unlawful Interference', priority: 1 },
+    '7600': { name: 'RADIO FAIL', description: 'Lost Communications', priority: 2 },
+    '7700': { name: 'EMERGENCY', description: 'General Emergency', priority: 1 },
+    '7777': { name: 'MIL INTERCEPT', description: 'Military Interception', priority: 1 }
+};
+
+// Interesting squawk codes - worth noting but not emergencies
+const INTERESTING_SQUAWKS = {
+    // Military
+    '0000': { name: 'MIL DISCRETE', category: 'Military' },
+    '4000': { name: 'MIL OPS', category: 'Military' },
+
+    // Australian CASA Special Codes
+    '0017': { name: 'POLICE', category: 'Government' },
+    '0021': { name: 'CUSTOMS', category: 'Government' },
+    '0100': { name: 'MEDEVAC', category: 'Emergency' },
+    '4040': { name: 'MIL TRAINING', category: 'Military' },
+
+    // Common VFR/SAR
+    '1200': { name: 'VFR', category: 'General' },
+    '1277': { name: 'SAR', category: 'Search & Rescue' }
+
+    // Note: Removed military reserved ranges (44xx, 50xx) as prefix matching
+    // was causing false positives on commercial flights
+};
+
 const state = {
     location: null,
     settings: {
@@ -160,7 +339,10 @@ const state = {
         useManualLocation: false,
         manualLat: null,
         manualLon: null,
-        apiMode: 'free' // 'free' | 'paid' | 'off'
+        apiMode: 'free', // 'free' | 'paid' | 'off'
+        // Special alerts settings
+        specialAlertRadius: 100,    // km - scan radius for military/emergency/VIP
+        specialAlertInterval: 120   // seconds - how often to check (2 min default)
     },
     flights: [],
     currentFlightIndex: 0,
@@ -178,7 +360,14 @@ const state = {
     // Aircraft tracking
     seenModels: new Set(), // Track unique aircraft models we've seen
     apiQuota: { used: 0, limit: 1000, lastReset: null }, // AirLabs quota tracking
-    recentlyRecordedFlights: new Map() // Track recently recorded flights with timestamps (1 hour cooldown)
+    recentlyRecordedFlights: new Map(), // Track recently recorded flights with timestamps (1 hour cooldown)
+    // Custom aircraft settings (loaded from server)
+    customRareAircraft: [],      // User-defined rare typecodes
+    customSpecialCallsigns: {},  // User-defined special callsign patterns
+    // ADSB.lol routes (batch-fetched)
+    adsbLolRoutes: {},           // { callsign: { origin, destination, fullRoute } }
+    // Special alerts (military, emergency, VIP)
+    specialAlerts: { military: [], emergency: [], vip: [], lastCheck: 0 }
 };
 
 // ==========================================
@@ -260,6 +449,9 @@ const elements = {
     saveManualCoords: document.getElementById('save-manual-coords'),
     radiusInput: document.getElementById('radius-input'),
     enableRouteApi: document.getElementById('enable-route-api'),
+
+    // Squawk Badge
+    squawkBadge: document.getElementById('squawk-badge'),
 
     // Features
     weatherAqi: document.getElementById('weather-aqi'),
@@ -632,7 +824,13 @@ async function recordFlightSighting(flight, routeInfo = null) {
         if (routeInfo && !routeInfo.notFound) {
             if (routeInfo.carrier || routeInfo.airline) data.carrier = routeInfo.carrier || routeInfo.airline;
             if (routeInfo.departure && routeInfo.arrival) data.route = `${routeInfo.departure} → ${routeInfo.arrival}`;
-            if (routeInfo.aircraft) data.aircraft = routeInfo.aircraft;
+            // Use the full aircraft name if possible
+            const typeCode = routeInfo.aircraft || flight.aircraft || flight.typecode;
+            data.aircraft = getAircraftName(typeCode);
+        } else {
+            // Basic lookup without route info
+            const typeCode = flight.aircraft || flight.typecode;
+            data.aircraft = getAircraftName(typeCode);
         }
 
         await fetch('/api/stats', {
@@ -886,6 +1084,143 @@ function headingToDirection(heading) {
     return `${Math.round(heading)}° ${directions[index]}`;
 }
 
+/**
+ * Batch-fetch routes from ADSB.lol (free, no rate limits!)
+ * Routes are stored in state.adsbLolRoutes and used by displayCurrentFlight
+ */
+async function fetchAdsbLolRoutes(flights) {
+    if (!flights || flights.length === 0) return;
+
+    try {
+        // Prepare planes array for ADSB.lol API
+        const planes = flights
+            .filter(f => f.callsign && f.callsign !== 'Unknown' && f.latitude && f.longitude)
+            .map(f => ({
+                callsign: f.callsign.trim(),
+                lat: f.latitude,
+                lng: f.longitude
+            }));
+
+        if (planes.length === 0) return;
+
+        console.log(`→ Fetching routes for ${planes.length} aircraft from ADSB.lol...`);
+
+        const response = await fetch('/api/adsblol-routes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ planes })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            if (data.routes) {
+                state.adsbLolRoutes = data.routes;
+                const routeCount = Object.keys(data.routes).length;
+                console.log(`✓ ADSB.lol: Got ${routeCount} routes`);
+
+                // Re-display current flight with new route data
+                if (state.flights.length > 0) {
+                    displayCurrentFlight();
+                }
+            }
+        }
+    } catch (e) {
+        console.log('ADSB.lol route fetch failed:', e.message);
+    }
+}
+
+/**
+ * Check for special aircraft (military, emergency, VIP) using ADSB.lol endpoints
+ * Called periodically based on specialAlertInterval setting
+ */
+async function fetchSpecialAlerts() {
+    if (!state.location) return;
+
+    // Check based on configurable interval (in seconds)
+    const intervalMs = (state.settings.specialAlertInterval || 120) * 1000;
+    const now = Date.now();
+    if (now - state.specialAlerts.lastCheck < intervalMs) return;
+    state.specialAlerts.lastCheck = now;
+
+    try {
+        const range = state.settings.specialAlertRadius || 100;
+        const response = await fetch(
+            `/api/special-alerts?lat=${state.location.latitude}&lon=${state.location.longitude}&range=${range}`
+        );
+
+        if (response.ok) {
+            const data = await response.json();
+
+            // Clear previous alerts
+            state.specialAlerts.military = data.military || [];
+            state.specialAlerts.emergency = data.emergency || [];
+            state.specialAlerts.vip = data.vip || [];
+
+            // Log any nearby interesting aircraft
+            if (data.military?.length > 0) {
+                console.log(`🎖️ MILITARY nearby: ${data.military.map(a => `${a.callsign} (${a.type}) ${a.distance}km`).join(', ')}`);
+            }
+
+            if (data.emergency?.length > 0) {
+                console.log(`🚨 EMERGENCY nearby: ${data.emergency.map(a => `${a.callsign} squawk ${a.squawk} ${a.distance}km`).join(', ')}`);
+            }
+
+            if (data.vip?.length > 0) {
+                console.log(`✨ VIP/PRIVATE nearby: ${data.vip.map(a => `${a.callsign} (${a.type}) ${a.distance}km`).join(', ')}`);
+            }
+
+            // Update special alert banner
+            updateSpecialAlertBanner();
+        }
+    } catch (e) {
+        console.log('Special alerts check failed:', e.message);
+    }
+}
+
+/**
+ * Update the special alert banner display
+ */
+function updateSpecialAlertBanner() {
+    const banner = document.getElementById('special-alert-banner');
+    if (!banner) return;
+
+    const alerts = state.specialAlerts;
+    const hasAlerts = alerts.military.length > 0 || alerts.emergency.length > 0 || alerts.vip.length > 0;
+
+    if (!hasAlerts) {
+        banner.classList.add('hidden');
+        return;
+    }
+
+    // Build banner text - prioritize emergencies
+    let icon = '✨';
+    let text = '';
+
+    if (alerts.emergency.length > 0) {
+        icon = '🚨';
+        const e = alerts.emergency[0];
+        text = `EMERGENCY ${e.callsign} ${e.distance}km`;
+    } else if (alerts.military.length > 0) {
+        icon = '🎖️';
+        const m = alerts.military[0];
+        text = `MIL ${m.callsign} (${m.type}) ${m.distance}km`;
+    } else if (alerts.vip.length > 0) {
+        icon = '✨';
+        const v = alerts.vip[0];
+        text = `VIP ${v.type} ${v.distance}km`;
+    }
+
+    banner.innerHTML = `<span class="alert-icon">${icon}</span> ${text}`;
+    banner.classList.remove('hidden');
+
+    // Add emergency class for styling
+    if (alerts.emergency.length > 0) {
+        banner.classList.add('emergency');
+    } else {
+        banner.classList.remove('emergency');
+    }
+}
+
 async function fetchFlights() {
     if (!state.location) {
         return;
@@ -950,7 +1285,11 @@ async function fetchFlights() {
                     onGround: s[8],
                     velocity: s[9],
                     heading: s[10],
-                    verticalRate: s[11]
+                    verticalRate: s[11],
+                    squawk: s[14] || null,         // Transponder code (e.g., 7700, 1200)
+                    // ADSB.lol bonus fields (not in OpenSky)
+                    typecode: s[17] || null,       // Aircraft type (e.g., B738, A388)
+                    registration: s[18] || null     // Registration (e.g., VH-OQD)
                 }))
                 // Filter: not on ground, has position, actually moving, and above min altitude
                 .filter(f =>
@@ -974,6 +1313,13 @@ async function fetchFlights() {
             if (state.flights.length > 0) {
                 updateStatus(`${state.flights.length} aircraft nearby`, true);
                 state.currentFlightIndex = 0;
+
+                // Batch-fetch routes from ADSB.lol (free, no rate limits!)
+                fetchAdsbLolRoutes(state.flights);
+
+                // Check for special aircraft (military, emergency, VIP)
+                fetchSpecialAlerts();
+
                 displayCurrentFlight();
                 startFlightRotation();
                 triggerEinkUpdate(); // Force E-Ink refresh
@@ -993,6 +1339,29 @@ async function fetchFlights() {
     } finally {
         state.isFetching = false;
     }
+}
+
+/**
+ * Check if a squawk code is significant (emergency or interesting)
+ * @param {string} squawk - The transponder code
+ * @returns {object|null} - { type: 'emergency'|'interesting', name, description } or null
+ */
+function getSquawkInfo(squawk) {
+    if (!squawk) return null;
+
+    // Check emergency codes first (highest priority)
+    if (EMERGENCY_SQUAWKS[squawk]) {
+        const info = EMERGENCY_SQUAWKS[squawk];
+        console.log(`🚨 EMERGENCY SQUAWK: ${squawk} (${info.name})`);
+        return { type: 'emergency', ...info };
+    }
+
+    // Check exact match interesting codes
+    if (INTERESTING_SQUAWKS[squawk]) {
+        return { type: 'interesting', ...INTERESTING_SQUAWKS[squawk] };
+    }
+
+    return null;
 }
 
 async function displayCurrentFlight() {
@@ -1032,30 +1401,69 @@ async function displayCurrentFlight() {
     }
 
     // ==========================================
-    // LOCAL DATABASE LOOKUP (Fast, no API call)
+    // SQUAWK CODE DISPLAY
+    // Show special squawk codes (emergency, military, CASA)
     // ==========================================
-    let localAircraftData = null;
-    if (flight.icao24 && elements.aircraft) {
+    if (elements.squawkBadge) {
+        const squawkInfo = getSquawkInfo(flight.squawk);
+        if (squawkInfo) {
+            elements.squawkBadge.textContent = `⚡ ${squawkInfo.name}`;
+            elements.squawkBadge.className = squawkInfo.type; // 'emergency' or 'interesting'
+            elements.squawkBadge.classList.remove('hidden');
+            console.log(`✓ Squawk ${flight.squawk}: ${squawkInfo.name} (${squawkInfo.type})`);
+        } else {
+            elements.squawkBadge.classList.add('hidden');
+        }
+    }
+
+    // ==========================================
+    // AIRCRAFT MODEL LOOKUP
+    // Priority: 1. ADSB.lol data (if available), 2. Local DB
+    // ==========================================
+    let displayModel = '';
+    let typecode = flight.typecode; // From ADSB.lol (null for OpenSky)
+    let registration = flight.registration;
+
+    if (typecode && elements.aircraft) {
+        // ADSB.lol provides typecode directly - use it!
+        displayModel = ICAO_TYPE_NAMES[typecode] || typecode;
+
+        // Check if this is a NEW model we haven't seen before
+        const isFirstSighting = typecode && !state.seenModels.has(typecode);
+
+        if (isFirstSighting) {
+            state.seenModels.add(typecode);
+            elements.aircraft.textContent = `NEW★ ${displayModel}`;
+            elements.aircraft.style.fontWeight = '900';
+            console.log(`🆕 First time seeing: ${typecode} (${displayModel}) [ADSB.lol]`);
+        } else {
+            elements.aircraft.textContent = displayModel;
+            elements.aircraft.style.fontWeight = '700';
+        }
+        console.log(`✓ ADSB.lol direct: ${flight.callsign} → ${displayModel} (${typecode})`);
+    } else if (flight.icao24 && elements.aircraft) {
+        // Fallback to local DB (for OpenSky or when ADSB.lol doesn't have typecode)
         try {
             const localResponse = await fetch(`/api/aircraft-meta/${flight.icao24}`);
             if (localResponse.ok) {
-                localAircraftData = await localResponse.json();
+                const localAircraftData = await localResponse.json();
                 if (localAircraftData.found) {
                     // Show manufacturer + model from local DB
-                    const displayModel = localAircraftData.manufacturer
+                    displayModel = localAircraftData.manufacturer
                         ? `${localAircraftData.manufacturer} ${localAircraftData.model}`.trim()
                         : localAircraftData.model || '';
+                    typecode = localAircraftData.typecode;
 
                     if (displayModel) {
                         // Check if this is a NEW model we haven't seen before
-                        const modelKey = localAircraftData.typecode || localAircraftData.model;
+                        const modelKey = typecode || localAircraftData.model;
                         const isFirstSighting = modelKey && !state.seenModels.has(modelKey);
 
                         if (isFirstSighting) {
                             state.seenModels.add(modelKey);
                             elements.aircraft.textContent = `NEW★ ${displayModel}`;
                             elements.aircraft.style.fontWeight = '900';
-                            console.log(`🆕 First time seeing: ${modelKey} (${displayModel})`);
+                            console.log(`🆕 First time seeing: ${modelKey} (${displayModel}) [LocalDB]`);
                         } else {
                             elements.aircraft.textContent = displayModel;
                             elements.aircraft.style.fontWeight = '700';
@@ -1074,8 +1482,25 @@ async function displayCurrentFlight() {
         }
     }
 
-    // ROUTE API LOOKUP (Works in 'free' mode via AirLabs, 'paid' via API.market)
-    if (state.settings.apiMode === 'free' || state.settings.apiMode === 'paid') {
+    // ==========================================
+    // ROUTE DISPLAY
+    // Priority: 1. ADSB.lol routes (batch-fetched), 2. Existing route API
+    // ==========================================
+
+    // Check ADSB.lol routes first (already batch-fetched, free, no rate limits)
+    const adsbLolRoute = state.adsbLolRoutes[flight.callsign];
+    if (adsbLolRoute && adsbLolRoute.origin && adsbLolRoute.destination) {
+        // Use city names if available, fallback to IATA codes
+        const originDisplay = adsbLolRoute.originName || adsbLolRoute.origin;
+        const destDisplay = adsbLolRoute.destinationName || adsbLolRoute.destination;
+
+        if (elements.route) elements.route.textContent = `${originDisplay} → ${destDisplay}`;
+        if (elements.routeInfo) elements.routeInfo.classList.remove('hidden');
+        console.log(`✓ ADSB.lol route: ${flight.callsign} → ${originDisplay} → ${destDisplay}`);
+        recordFlightSighting(flight, { departure: adsbLolRoute.origin, arrival: adsbLolRoute.destination });
+    }
+    // Fallback to existing route API (AirLabs/API.market) if no ADSB.lol route
+    else if (state.settings.apiMode === 'free' || state.settings.apiMode === 'paid') {
         try {
             const routeInfo = await fetchFlightRoute(flight.callsign);
             if (routeInfo && !routeInfo.notFound) {
@@ -1088,8 +1513,9 @@ async function displayCurrentFlight() {
                 if (!localAircraftData?.found && routeInfo.aircraft && elements.aircraft) {
                     elements.aircraft.textContent = routeInfo.aircraft;
 
-                    // Check for rare aircraft
-                    const isRare = RARE_AIRCRAFT.some(code => routeInfo.aircraftCode && routeInfo.aircraftCode.startsWith(code));
+                    // Check for rare aircraft (built-in + custom)
+                    const allRareTypes = [...RARE_AIRCRAFT, ...state.customRareAircraft];
+                    const isRare = allRareTypes.some(code => routeInfo.aircraftCode && routeInfo.aircraftCode.startsWith(code));
                     if (isRare) {
                         elements.aircraft.textContent += ' ★';
                         elements.aircraft.style.fontWeight = '900';
@@ -1169,12 +1595,14 @@ async function recordFlightSighting(flight, routeInfo = null) {
         const typecode = routeInfo?.aircraftCode || flight.typecode || null;
         const aircraft = routeInfo?.aircraft || flight.model || null;
 
-        // Check if rare (by aircraft type)
-        const isRare = typecode && RARE_AIRCRAFT.some(code => typecode.startsWith(code));
+        // Check if rare (by aircraft type) - built-in + custom
+        const allRareTypes = [...RARE_AIRCRAFT, ...state.customRareAircraft];
+        const isRare = typecode && allRareTypes.some(code => typecode.startsWith(code));
 
-        // Check if special callsign (Police, Military, Emergency, etc.)
+        // Check if special callsign (Police, Military, Emergency, etc.) - built-in + custom
         let specialInfo = null;
-        for (const [prefix, info] of Object.entries(SPECIAL_CALLSIGNS)) {
+        const allSpecialCallsigns = { ...SPECIAL_CALLSIGNS, ...state.customSpecialCallsigns };
+        for (const [prefix, info] of Object.entries(allSpecialCallsigns)) {
             if (flight.callsign.toUpperCase().startsWith(prefix)) {
                 specialInfo = info;
                 break;
@@ -1479,6 +1907,9 @@ async function init() {
     // Initial server settings sync
     await syncSettings();
 
+    // Load previously seen models from stats (prevents false "NEW★" markers)
+    await loadSeenModels();
+
     // Initialize E-Ink settings panel
     initEinkSettings();
 
@@ -1493,6 +1924,37 @@ async function init() {
 
     // Sync settings every 60 seconds
     setInterval(syncSettings, 60000);
+}
+
+/**
+ * Load previously seen models from stats API
+ * Populates state.seenModels to prevent false "NEW★" detection
+ */
+async function loadSeenModels() {
+    try {
+        const response = await fetch('/api/stats');
+        if (!response.ok) return;
+
+        const data = await response.json();
+
+        // Load typecodes from models list (API returns 'modelsList')
+        if (data.modelsList) {
+            data.modelsList.forEach(([typecode]) => {
+                if (typecode) state.seenModels.add(typecode);
+            });
+        }
+
+        // Also check recent sightings for typecodes (API returns 'recentSightings')
+        if (data.recentSightings) {
+            data.recentSightings.forEach(([callsign, info]) => {
+                if (info && info.typecode) state.seenModels.add(info.typecode);
+            });
+        }
+
+        console.log(`✓ Loaded ${state.seenModels.size} previously seen aircraft types`);
+    } catch (e) {
+        console.log('Could not load seen models from stats:', e.message);
+    }
 }
 
 // Fetch settings from server (radius, interval)
@@ -1522,6 +1984,29 @@ async function syncSettings() {
                     startFetchInterval();
                 }
             }
+        } catch (e) { }
+
+        // Custom aircraft settings (rare types + special callsigns)
+        try {
+            const customRes = await fetch('/api/config/custom-aircraft');
+            const customData = await customRes.json();
+            if (customData.rareTypes) {
+                state.customRareAircraft = customData.rareTypes;
+            }
+            if (customData.specialCallsigns) {
+                state.customSpecialCallsigns = customData.specialCallsigns;
+            }
+            if (customData.rareTypes?.length > 0 || Object.keys(customData.specialCallsigns || {}).length > 0) {
+                console.log(`Custom aircraft loaded: ${customData.rareTypes?.length || 0} rare types, ${Object.keys(customData.specialCallsigns || {}).length} special callsigns`);
+            }
+        } catch (e) { }
+
+        // Special alerts settings (military, emergency, VIP)
+        try {
+            const alertRes = await fetch('/api/config/special-alerts');
+            const alertData = await alertRes.json();
+            if (alertData.radius) state.settings.specialAlertRadius = alertData.radius;
+            if (alertData.interval) state.settings.specialAlertInterval = alertData.interval;
         } catch (e) { }
 
     } catch (e) {

@@ -34,7 +34,7 @@ const log = {
 };
 
 // Configuration
-const KINDLE_IP = '192.168.68.123';
+const KINDLE_IP = '192.168.68.116';
 
 // Show beautiful startup banner
 console.clear();

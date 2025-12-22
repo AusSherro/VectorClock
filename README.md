@@ -7,7 +7,7 @@ A smart flight tracker and clock designed for Raspberry Pi with E-Ink displays. 
 ## Features
 
 ### Core
-- **Real-time Flight Tracking** via OpenSky Network
+- **Real-time Flight Tracking** via ADSB.lol (default) or OpenSky Network
 - **Local Aircraft Database**: 616,000+ aircraft in SQLite for instant lookups
 - **E-Ink Optimized**: High-contrast UI for 800x480 monochrome displays
 - **Kindle Mode**: Works on jailbroken Kindle Paperwhite
@@ -21,6 +21,7 @@ A smart flight tracker and clock designed for Raspberry Pi with E-Ink displays. 
 ### Smart Features
 - **3-Way API Mode**: Free (AirLabs) / Paid (AeroDataBox) / Off
 - **First-Time Model Detection**: Shows `NEW★` for new aircraft types
+- **ADSB.lol Special Alerts**: Real-time alerts for Military, Emergency, and VIP aircraft
 - **Rare Aircraft Alerts**: Highlights A380, 787, RAAF C-17, F-35, etc.
 - **Stats Dashboard**: Track sightings, rare aircraft, unique models
 - **1,300+ Airline Logos**: Local icons with fallback fetching
@@ -124,7 +125,7 @@ Key requirements:
 
 See [CHANGELOG.md](CHANGELOG.md) for version history.
 
-Current version: **v1.4.0** - Stats Redesign & Remote Settings
+Current version: **v1.5.1** - Settings UI Overhaul
 
 ## License
 

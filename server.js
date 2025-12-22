@@ -1111,45 +1111,7 @@ app.get('/api/logo/:icao', async (req, res) => {
     }
 });
 
-// Stats Endpoint
-app.post('/api/stats', (req, res) => {
-    try {
-        const sighting = req.body;
-        // Basic validation
-        if (!sighting || !sighting.callsign) {
-            return res.status(400).send('Invalid sighting data');
-        }
-
-        const statsFile = path.join(__dirname, 'flight_stats.json');
-        let stats = [];
-        if (fs.existsSync(statsFile)) {
-            stats = JSON.parse(fs.readFileSync(statsFile));
-        }
-
-        // Add to history (keep last 1000)
-        stats.unshift(sighting);
-        if (stats.length > 1000) stats.pop();
-
-        fs.writeFileSync(statsFile, JSON.stringify(stats, null, 2));
-
-        // Check for Rare Aircraft
-        if (sighting.rare) {
-            const rareFile = path.join(__dirname, 'rare_sightings.json');
-            let rareStats = [];
-            if (fs.existsSync(rareFile)) {
-                rareStats = JSON.parse(fs.readFileSync(rareFile));
-            }
-            rareStats.unshift(sighting); // Keep all rare ones? Or limit?
-            fs.writeFileSync(rareFile, JSON.stringify(rareStats, null, 2));
-            console.log(`★ RARE SIGHTING RECORDED: ${sighting.callsign}`);
-        }
-
-        res.json({ success: true });
-    } catch (e) {
-        console.error('Stats error:', e);
-        res.status(500).json({ error: e.message });
-    }
-});
+// [Legacy JSON stats endpoint removed - see lines 846+ for SQLite implementation]
 
 // Flight Info cache (7 day expiry)
 const FLIGHT_CACHE = {};
@@ -1298,6 +1260,49 @@ app.post('/api/config/interval', (req, res) => {
     }
 });
 
+// Flight data source (adsblol or opensky)
+let FLIGHT_SOURCE = userConfig.flightSource || 'adsblol';
+
+app.get('/api/config/flight-source', (req, res) => {
+    res.json({ source: FLIGHT_SOURCE });
+});
+
+app.post('/api/config/flight-source', (req, res) => {
+    const { source } = req.body;
+    if (['adsblol', 'opensky'].includes(source)) {
+        FLIGHT_SOURCE = source;
+        console.log(`Flight source updated: ${FLIGHT_SOURCE}`);
+        res.json({ success: true, source: FLIGHT_SOURCE });
+    } else {
+        res.status(400).json({ error: 'Invalid source. Use: adsblol or opensky' });
+    }
+});
+
+// Special alerts configuration (military, emergency, VIP)
+let SPECIAL_ALERT_CONFIG = {
+    radius: userConfig.specialAlertRadius || 100,    // km
+    interval: userConfig.specialAlertInterval || 120 // seconds
+};
+
+app.get('/api/config/special-alerts', (req, res) => {
+    res.json(SPECIAL_ALERT_CONFIG);
+});
+
+app.post('/api/config/special-alerts', (req, res) => {
+    const { radius, interval } = req.body;
+
+    if (typeof radius === 'number' && radius >= 10 && radius <= 500) {
+        SPECIAL_ALERT_CONFIG.radius = radius;
+    }
+
+    if (typeof interval === 'number' && interval >= 30 && interval <= 600) {
+        SPECIAL_ALERT_CONFIG.interval = interval;
+    }
+
+    console.log(`Special alerts updated: ${SPECIAL_ALERT_CONFIG.radius}km every ${SPECIAL_ALERT_CONFIG.interval}s`);
+    res.json({ success: true, ...SPECIAL_ALERT_CONFIG });
+});
+
 // Kindle frontlight settings
 let KINDLE_FRONTLIGHT = {
     enabled: false,
@@ -1321,6 +1326,58 @@ app.post('/api/config/frontlight', (req, res) => {
 
     console.log(`Frontlight updated: ${KINDLE_FRONTLIGHT.enabled ? 'ON' : 'OFF'} @ brightness ${KINDLE_FRONTLIGHT.brightness}`);
     res.json({ success: true, ...KINDLE_FRONTLIGHT });
+});
+
+// Kindle Display configuration (IP, refresh interval)
+let KINDLE_CONFIG = {
+    ip: userConfig.kindleIp || '192.168.68.116',
+    refreshInterval: userConfig.kindleRefresh || 15
+};
+
+app.get('/api/config/kindle', (req, res) => {
+    res.json(KINDLE_CONFIG);
+});
+
+app.post('/api/config/kindle', (req, res) => {
+    const { ip, refreshInterval } = req.body;
+
+    if (typeof ip === 'string' && ip.length > 0) {
+        KINDLE_CONFIG.ip = ip.trim();
+    }
+
+    if (typeof refreshInterval === 'number' && refreshInterval >= 10 && refreshInterval <= 120) {
+        KINDLE_CONFIG.refreshInterval = refreshInterval;
+    }
+
+    console.log(`Kindle config updated: IP=${KINDLE_CONFIG.ip}, Refresh=${KINDLE_CONFIG.refreshInterval}s`);
+    res.json({ success: true, ...KINDLE_CONFIG });
+});
+
+// Kindle Status Heartbeat
+let KINDLE_STATUS = {
+    online: false,        // Is the script running?
+    connected: false,     // Is the Kindle accessible via SSH?
+    lastSeen: 0,
+    message: 'Waiting for heartbeat...'
+};
+
+app.post('/api/kindle/heartbeat', (req, res) => {
+    const { connected, message } = req.body;
+    KINDLE_STATUS.online = true;
+    KINDLE_STATUS.connected = !!connected;
+    KINDLE_STATUS.message = message || (connected ? 'Connected' : 'Error');
+    KINDLE_STATUS.lastSeen = Date.now();
+    res.json({ success: true });
+});
+
+app.get('/api/kindle/status', (req, res) => {
+    // Check if script is dead (no heartbeat for 60s)
+    if (Date.now() - KINDLE_STATUS.lastSeen > 60000) {
+        KINDLE_STATUS.online = false;
+        KINDLE_STATUS.connected = false;
+        KINDLE_STATUS.message = 'Script not running (No heartbeat)';
+    }
+    res.json(KINDLE_STATUS);
 });
 
 // Legacy endpoint for backward compatibility
@@ -1359,6 +1416,274 @@ app.post('/api/config/location', (req, res) => {
         res.json({ success: true, ...LOCATION });
     } else {
         res.status(400).json({ error: 'Invalid coordinates' });
+    }
+});
+
+// Custom aircraft configuration (rare types + special callsigns)
+let CUSTOM_AIRCRAFT = {
+    rareTypes: [],         // e.g. ['F35', 'A225', 'C5M']
+    specialCallsigns: {}   // e.g. { 'VH-OQA': { name: 'Historic 747', category: 'Historic' } }
+};
+
+app.get('/api/config/custom-aircraft', (req, res) => {
+    res.json(CUSTOM_AIRCRAFT);
+});
+
+app.post('/api/config/custom-aircraft', (req, res) => {
+    const { rareTypes, specialCallsigns } = req.body;
+
+    if (Array.isArray(rareTypes)) {
+        // Clean and uppercase all typecodes
+        CUSTOM_AIRCRAFT.rareTypes = rareTypes
+            .map(t => String(t).trim().toUpperCase())
+            .filter(t => t.length > 0);
+    }
+
+    if (typeof specialCallsigns === 'object' && specialCallsigns !== null) {
+        CUSTOM_AIRCRAFT.specialCallsigns = specialCallsigns;
+    }
+
+    console.log(`Custom aircraft updated: ${CUSTOM_AIRCRAFT.rareTypes.length} rare types, ${Object.keys(CUSTOM_AIRCRAFT.specialCallsigns).length} special callsigns`);
+    res.json({ success: true, ...CUSTOM_AIRCRAFT });
+});
+
+// ==========================================
+// ADSB.lol Route Lookup (FREE, no rate limits!)
+// Uses their /api/0/routeset endpoint
+// ==========================================
+const ADSBLOL_ROUTE_CACHE = {};
+const ADSBLOL_ROUTE_CACHE_MS = 24 * 60 * 60 * 1000; // 24 hour cache
+
+/**
+ * Extract short city name from full airport name
+ * "Sydney Kingsford Smith International Airport" → "Sydney"
+ * "Chongqing Jiangbei International Airport" → "Chongqing"
+ */
+function extractCityName(fullName) {
+    if (!fullName) return null;
+
+    // Common words to remove from airport names
+    const removeWords = ['international', 'airport', 'regional', 'domestic', 'municipal', 'memorial'];
+
+    // Split and get first 1-2 words (usually the city name)
+    const words = fullName.split(/\s+/);
+    const cityWords = [];
+
+    for (const word of words) {
+        if (removeWords.includes(word.toLowerCase())) break;
+        if (word.length <= 2) continue; // Skip short words like "St"
+        cityWords.push(word);
+        if (cityWords.length >= 2) break; // Max 2 words for city name
+    }
+
+    return cityWords.length > 0 ? cityWords.join(' ') : fullName.split(' ')[0];
+}
+
+app.post('/api/adsblol-routes', async (req, res) => {
+    try {
+        const { planes } = req.body;
+
+        if (!Array.isArray(planes) || planes.length === 0) {
+            return res.json({ routes: {} });
+        }
+
+        // Check cache first
+        const cachedRoutes = {};
+        const uncachedPlanes = [];
+
+        for (const plane of planes) {
+            const cached = ADSBLOL_ROUTE_CACHE[plane.callsign];
+            if (cached && Date.now() < cached.expiry) {
+                cachedRoutes[plane.callsign] = cached.data;
+            } else {
+                uncachedPlanes.push(plane);
+            }
+        }
+
+        // If all cached, return immediately
+        if (uncachedPlanes.length === 0) {
+            console.log(`✓ ADSB.lol routes: All ${planes.length} from cache`);
+            return res.json({ routes: cachedRoutes });
+        }
+
+        // Query ADSB.lol for uncached routes
+        console.log(`→ Fetching ${uncachedPlanes.length} routes from ADSB.lol...`);
+        const response = await axios.post('https://api.adsb.lol/api/0/routeset', {
+            planes: uncachedPlanes
+        }, {
+            timeout: 10000,
+            httpsAgent: new https.Agent({ family: 4 })
+        });
+
+        const routes = { ...cachedRoutes };
+
+        if (response.data) {
+            // ADSB.lol returns an array with callsign inside each object
+            // Format: [ { callsign: "GCR7943", _airport_codes_iata: "CKG-SYD", _airports: [...], ... }, ... ]
+            const routeArray = Array.isArray(response.data) ? response.data : response.data.value || [];
+
+            for (const routeData of routeArray) {
+                if (routeData && routeData.callsign && routeData._airport_codes_iata) {
+                    const callsign = routeData.callsign.trim();
+                    const airports = routeData._airport_codes_iata.split('-');
+
+                    // Extract airport names from _airports array
+                    let originName = null;
+                    let destName = null;
+
+                    if (routeData._airports && Array.isArray(routeData._airports)) {
+                        const airportList = routeData._airports;
+                        if (airportList.length >= 1 && airportList[0].name) {
+                            // Extract city name (first word or before keywords like "International", "Airport")
+                            originName = extractCityName(airportList[0].name);
+                        }
+                        if (airportList.length >= 2 && airportList[airportList.length - 1].name) {
+                            destName = extractCityName(airportList[airportList.length - 1].name);
+                        }
+                    }
+
+                    const route = {
+                        origin: airports[0] || null,
+                        destination: airports[airports.length - 1] || null,
+                        originName: originName,
+                        destinationName: destName,
+                        fullRoute: routeData._airport_codes_iata,
+                        source: 'adsblol'
+                    };
+                    routes[callsign] = route;
+
+                    // Cache the result
+                    ADSBLOL_ROUTE_CACHE[callsign] = {
+                        data: route,
+                        expiry: Date.now() + ADSBLOL_ROUTE_CACHE_MS
+                    };
+                }
+            }
+        }
+
+        console.log(`✓ ADSB.lol routes: ${Object.keys(routes).length} total (${uncachedPlanes.length} fetched)`);
+        res.json({ routes });
+
+    } catch (e) {
+        console.error('ADSB.lol route lookup error:', e.message);
+        res.json({ routes: {}, error: e.message });
+    }
+});
+
+// ==========================================
+// ADSB.lol Special Alerts (Military, Emergency, VIP, Widebody)
+// ==========================================
+
+/**
+ * Calculate distance between two coordinates (Haversine)
+ */
+function haversineDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371; // Earth radius in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/**
+ * Filter aircraft to those within range and add distance
+ */
+function filterByDistance(aircraft, userLat, userLon, maxRangeKm) {
+    return aircraft
+        .filter(ac => ac.lat && ac.lon)
+        .map(ac => ({
+            ...ac,
+            distance: haversineDistance(userLat, userLon, ac.lat, ac.lon)
+        }))
+        .filter(ac => ac.distance <= maxRangeKm)
+        .sort((a, b) => a.distance - b.distance);
+}
+
+// Unified special alerts endpoint
+app.get('/api/special-alerts', async (req, res) => {
+    const { lat, lon, range = 100 } = req.query;
+
+    if (!lat || !lon) {
+        return res.json({ error: 'lat and lon required' });
+    }
+
+    const userLat = parseFloat(lat);
+    const userLon = parseFloat(lon);
+    const maxRange = Math.min(parseInt(range), 500); // Cap at 500km
+
+    const alerts = {
+        military: [],
+        emergency: [],
+        vip: [],
+        widebody: [],
+        timestamp: Date.now()
+    };
+
+    try {
+        // Parallel fetch all special endpoints
+        const [milRes, emergRes, vipRes] = await Promise.allSettled([
+            axios.get('https://api.adsb.lol/v2/mil', {
+                timeout: 8000,
+                httpsAgent: new https.Agent({ family: 4 })
+            }),
+            axios.get('https://api.adsb.lol/v2/squawk/7700', {
+                timeout: 8000,
+                httpsAgent: new https.Agent({ family: 4 })
+            }),
+            axios.get('https://api.adsb.lol/v2/pia', {
+                timeout: 8000,
+                httpsAgent: new https.Agent({ family: 4 })
+            })
+        ]);
+
+        // Process military
+        if (milRes.status === 'fulfilled' && milRes.value.data?.ac) {
+            const nearby = filterByDistance(milRes.value.data.ac, userLat, userLon, maxRange);
+            alerts.military = nearby.slice(0, 10).map(ac => ({
+                callsign: (ac.flight || '').trim() || ac.hex,
+                type: ac.t || 'Unknown',
+                registration: ac.r || null,
+                altitude: ac.alt_baro,
+                distance: Math.round(ac.distance),
+                category: 'Military'
+            }));
+        }
+
+        // Process emergencies
+        if (emergRes.status === 'fulfilled' && emergRes.value.data?.ac) {
+            const nearby = filterByDistance(emergRes.value.data.ac, userLat, userLon, maxRange * 2); // Extended range for emergencies
+            alerts.emergency = nearby.slice(0, 5).map(ac => ({
+                callsign: (ac.flight || '').trim() || ac.hex,
+                type: ac.t || 'Unknown',
+                squawk: ac.squawk,
+                altitude: ac.alt_baro,
+                distance: Math.round(ac.distance),
+                category: 'Emergency'
+            }));
+        }
+
+        // Process VIP (Privacy ICAO)
+        if (vipRes.status === 'fulfilled' && vipRes.value.data?.ac) {
+            const nearby = filterByDistance(vipRes.value.data.ac, userLat, userLon, maxRange);
+            alerts.vip = nearby.slice(0, 5).map(ac => ({
+                callsign: (ac.flight || '').trim() || 'BLOCKED',
+                type: ac.t || 'Unknown',
+                altitude: ac.alt_baro,
+                distance: Math.round(ac.distance),
+                category: 'VIP/Private'
+            }));
+        }
+
+        const totalAlerts = alerts.military.length + alerts.emergency.length + alerts.vip.length;
+        console.log(`✓ Special alerts: ${alerts.military.length} mil, ${alerts.emergency.length} emerg, ${alerts.vip.length} vip (within ${maxRange}km)`);
+
+        res.json(alerts);
+
+    } catch (e) {
+        console.error('Special alerts error:', e.message);
+        res.json({ ...alerts, error: e.message });
     }
 });
 
@@ -1496,6 +1821,28 @@ app.get('/api/flight-info/:callsign', async (req, res) => {
 });
 
 // ==========================================
+// Flight Data Source Configuration
+// 'opensky' - OpenSky Network (rate limited, requires auth)
+// 'adsblol' - ADSB.lol (no rate limits, no auth required)
+// ==========================================
+let FLIGHT_SOURCE = userConfig.flightSource || 'adsblol'; // Default to ADSB.lol (no rate limits!)
+
+app.get('/api/config/flight-source', (req, res) => {
+    res.json({ source: FLIGHT_SOURCE });
+});
+
+app.post('/api/config/flight-source', (req, res) => {
+    const { source } = req.body;
+    if (['opensky', 'adsblol'].includes(source)) {
+        FLIGHT_SOURCE = source;
+        console.log(`Flight source updated: ${FLIGHT_SOURCE.toUpperCase()}`);
+        res.json({ success: true, source: FLIGHT_SOURCE });
+    } else {
+        res.status(400).json({ error: 'Invalid source. Use: opensky or adsblol' });
+    }
+});
+
+// ==========================================
 // OpenSky Authentication
 // ==========================================
 
@@ -1536,7 +1883,94 @@ async function getAccessToken() {
     }
 }
 
-// Proxy endpoint for OpenSky API
+// ==========================================
+// ADSB.lol API Integration
+// ==========================================
+
+/**
+ * Fetch flights from ADSB.lol API
+ * @param {number} lat - Center latitude
+ * @param {number} lon - Center longitude  
+ * @param {number} radiusKm - Radius in kilometers
+ * @returns {object} - OpenSky-compatible response format
+ */
+async function fetchFromADSBLol(lat, lon, radiusKm) {
+    // ADSB.lol uses nautical miles (1 nm = 1.852 km)
+    const radiusNm = Math.min(250, Math.ceil(radiusKm / 1.852));
+
+    const url = `https://api.adsb.lol/v2/point/${lat}/${lon}/${radiusNm}`;
+    console.log(`→ Fetching from ADSB.lol (radius: ${radiusNm}nm)...`);
+
+    // Use axios with IPv4 agent (similar to logo proxy)
+    const response = await axios.get(url, {
+        timeout: 10000,
+        httpsAgent: new https.Agent({ family: 4 })
+    });
+
+    if (response.status !== 200) {
+        throw new Error(`ADSB.lol API error: ${response.status}`);
+    }
+
+    const data = response.data;
+
+    // Convert ADSB.lol format to OpenSky format for compatibility
+    // OpenSky format: [icao24, callsign, origin_country, time_position, last_contact, longitude, latitude, baro_altitude, on_ground, velocity, true_track, vertical_rate, sensors, geo_altitude, squawk, spi, position_source]
+    const states = (data.ac || []).map(ac => {
+        // Convert altitude from feet to meters
+        const altitudeM = ac.alt_baro && typeof ac.alt_baro === 'number'
+            ? Math.round(ac.alt_baro * 0.3048)
+            : null;
+
+        // Convert ground speed from knots to m/s
+        const velocityMs = ac.gs ? ac.gs * 0.514444 : null;
+
+        return [
+            ac.hex || '',                           // [0] icao24
+            (ac.flight || '').trim(),               // [1] callsign
+            ac.r ? getCountryFromReg(ac.r) : '',    // [2] origin_country (derived from registration)
+            null,                                   // [3] time_position
+            null,                                   // [4] last_contact
+            ac.lon || null,                         // [5] longitude
+            ac.lat || null,                         // [6] latitude
+            altitudeM,                              // [7] baro_altitude (meters)
+            ac.alt_baro === 'ground',               // [8] on_ground
+            velocityMs,                             // [9] velocity (m/s)
+            ac.track || null,                       // [10] true_track
+            ac.baro_rate ? ac.baro_rate * 0.00508 : null, // [11] vertical_rate (ft/min to m/s)
+            null,                                   // [12] sensors
+            altitudeM,                              // [13] geo_altitude
+            ac.squawk || null,                      // [14] squawk
+            ac.spi === 1,                           // [15] spi
+            null,                                   // [16] position_source
+            // Extra fields for our use (not in OpenSky format)
+            ac.t || null,                           // [17] typecode (bonus from ADSB.lol!)
+            ac.r || null                            // [18] registration
+        ];
+    }).filter(s => s[5] !== null && s[6] !== null); // Filter out aircraft without position
+
+    console.log(`✓ ADSB.lol: Found ${states.length} aircraft`);
+
+    return { states, time: Math.floor(Date.now() / 1000) };
+}
+
+/**
+ * Get country from aircraft registration prefix
+ */
+function getCountryFromReg(reg) {
+    if (!reg) return '';
+    const prefix = reg.substring(0, 2).toUpperCase();
+    const countryMap = {
+        'VH': 'Australia', 'ZK': 'New Zealand', 'N': 'United States',
+        'G-': 'United Kingdom', 'F-': 'France', 'D-': 'Germany',
+        '9V': 'Singapore', 'JA': 'Japan', 'B-': 'China', 'HL': 'South Korea',
+        'C-': 'Canada', 'A6': 'United Arab Emirates', 'A7': 'Qatar',
+        'PK': 'Indonesia', 'RP': 'Philippines', 'HS': 'Thailand'
+    };
+    // Check 2-char prefixes first, then single char
+    return countryMap[prefix] || countryMap[reg[0]] || '';
+}
+
+// Proxy endpoint for flight data (supports both OpenSky and ADSB.lol)
 app.get('/api/opensky', async (req, res) => {
     try {
         const { lamin, lamax, lomin, lomax } = req.query;
@@ -1545,16 +1979,33 @@ app.get('/api/opensky', async (req, res) => {
             return res.status(400).json({ error: 'Missing bounding box parameters' });
         }
 
-        // Get OAuth2 token
-        const token = await getAccessToken();
+        // Calculate center point for ADSB.lol
+        const centerLat = (parseFloat(lamin) + parseFloat(lamax)) / 2;
+        const centerLon = (parseFloat(lomin) + parseFloat(lomax)) / 2;
 
+        // Use configured scan radius
+        const radiusKm = SCAN_RADIUS;
+
+        // Use configured flight source
+        if (FLIGHT_SOURCE === 'adsblol') {
+            try {
+                const data = await fetchFromADSBLol(centerLat, centerLon, radiusKm);
+                return res.json(data);
+            } catch (error) {
+                console.error('ADSB.lol error, falling back to OpenSky:', error.message);
+                // Fall through to OpenSky
+            }
+        }
+
+        // OpenSky path
+        const token = await getAccessToken();
         const url = `${OPENSKY_CONFIG.API_URL}?lamin=${lamin}&lomin=${lomin}&lamax=${lamax}&lomax=${lomax}`;
 
         const headers = token
             ? { 'Authorization': `Bearer ${token}` }
             : {};
 
-        console.log(`→ Fetching flights (${token ? 'authenticated' : 'anonymous'})...`);
+        console.log(`→ Fetching flights from OpenSky (${token ? 'authenticated' : 'anonymous'})...`);
 
         const response = await fetch(url, { headers });
 
@@ -1568,7 +2019,7 @@ app.get('/api/opensky', async (req, res) => {
 
         const data = await response.json();
         const flightCount = data.states ? data.states.length : 0;
-        console.log(`✓ Found ${flightCount} aircraft`);
+        console.log(`✓ OpenSky: Found ${flightCount} aircraft`);
 
         res.json(data);
 

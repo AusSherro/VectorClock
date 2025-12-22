@@ -96,6 +96,33 @@ body {
     /* Taller to fit all elements */
 }
 
+/* Special Alert Banner (Military, Emergency, VIP) */
+#special-alert-banner {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 4px 8px;
+    text-align: center;
+    background: transparent;
+    border: 1px solid #000000;
+    letter-spacing: 0.5px;
+    z-index: 5;
+}
+
+#special-alert-banner.emergency {
+    background: #000000;
+    color: #FFFFFF;
+    border: 2px solid #000000;
+}
+
+#special-alert-banner .alert-icon {
+    margin-right: 4px;
+}
+
 /* Top Info - Flight Details (positioned at top) */
 #top-info {
     position: absolute;
@@ -150,6 +177,31 @@ body {
     color: #000000;
     /* Pure black for E-ink */
     letter-spacing: 0.5px;
+}
+
+/* Squawk Badge - E-Ink optimized */
+#squawk-badge {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 2px 10px;
+    margin-top: 4px;
+    display: inline-block;
+    letter-spacing: 1px;
+}
+
+/* Emergency squawks (7500, 7600, 7700, 7777) - Black box */
+#squawk-badge.emergency {
+    background: #000000;
+    color: #FFFFFF;
+    border: 2px solid #000000;
+}
+
+/* Interesting squawks (military, CASA, VFR) - Outlined */
+#squawk-badge.interesting {
+    background: transparent;
+    color: #000000;
+    border: 1px solid #000000;
 }
 
 /* Clock Center - ABSOLUTELY CENTERED */
