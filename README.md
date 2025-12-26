@@ -26,6 +26,8 @@ A smart flight tracker and clock designed for Raspberry Pi with E-Ink displays. 
 - **Stats Dashboard**: Track sightings, rare aircraft, unique models
 - **1,300+ Airline Logos**: Local icons with fallback fetching
 - **Remote Settings**: Configure radius, interval, API mode via web UI
+- **Literature Clock**: 1,400+ literary quotes replace digital time (toggleable)
+- **Spotify Now Playing**: Shows currently playing track from your Spotify account
 - **Kindle Frontlight Control**: Toggle backlight and brightness remotely
 
 ## Installation
@@ -63,6 +65,7 @@ Access the settings page at `http://<pi-ip>:3000/settings.html` to configure:
 |------|---------|-------------|
 | Desktop | `npm start` | Open http://localhost:3000 |
 | E-Ink | `npm run eink` | Puppeteer → screenshots/eink_frame.png |
+| Pi E-Paper | `npm run epaper` | Native Python driver for Waveshare HAT |
 | Kindle | `npm run kindle` | SSH push to Kindle every 15s |
 | Stats | - | http://localhost:3000/stats.html |
 | Settings | - | http://localhost:3000/settings.html |
@@ -92,6 +95,7 @@ Access the settings page at `http://<pi-ip>:3000/settings.html` to configure:
 ├── app.js             # Frontend flight tracking logic
 ├── render.js          # E-Ink screenshot renderer (Puppeteer)
 ├── kindle-display.js  # Kindle SSH push & display
+├── epaper-display.py  # Native Python e-paper driver (Pi Zero 2 W)
 ├── start_kindle.js    # Kindle mode orchestrator
 ├── setup.js           # CLI config wizard
 ├── csv_to_db.py       # CSV → SQLite converter
@@ -112,9 +116,46 @@ Access the settings page at `http://<pi-ip>:3000/settings.html` to configure:
 - Waveshare 4.26" E-Ink HAT (800×480)
 - Or: Jailbroken Kindle Paperwhite (7th gen)
 
+## Raspberry Pi E-Paper Setup
+
+For native e-paper display using Waveshare 4.26" HAT on Pi Zero 2 W:
+
+### Hardware Setup
+1. Attach the 4.26" E-Paper HAT to the Pi's 40-pin GPIO header
+2. Enable SPI: `sudo raspi-config` → Interface Options → SPI → Enable
+
+### Software Setup
+```bash
+# Install system dependencies
+sudo apt-get update
+sudo apt-get install python3-pip python3-pil python3-numpy
+
+# Install Python libraries
+pip3 install -r requirements-pi.txt
+
+# Clone Waveshare driver library
+git clone https://github.com/waveshare/e-Paper.git
+cp e-Paper/RaspberryPi_JetsonNano/python/lib/waveshare_epd/epd4in26.py ./
+```
+
+### Running
+```bash
+# Option 1: Run with Node.js server (full features)
+npm start &                    # Start server in background
+python3 epaper-display.py      # Start e-paper display
+
+# Option 2: Standalone display (connects to remote server)
+SERVER_URL=http://192.168.1.100:3000 python3 epaper-display.py
+```
+
+The e-paper driver features:
+- **Partial refresh** for clock updates (~0.3s vs 3s)
+- **Minute-accurate** clock sync
+- **Flight detection** triggers instant partial refresh
+- **Full refresh** every 6 hours to prevent ghosting
+
 ## Kindle Setup
 
-See [DEPLOY.md](DEPLOY.md) for detailed Kindle jailbreak and configuration instructions.
 
 Key requirements:
 - Jailbroken Kindle with KUAL and USBNetwork
@@ -125,7 +166,7 @@ Key requirements:
 
 See [CHANGELOG.md](CHANGELOG.md) for version history.
 
-Current version: **v1.5.1** - Settings UI Overhaul
+Current version: **v1.6.0** - Native E-Paper Display Driver
 
 ## License
 

@@ -99,7 +99,7 @@ body {
 /* Special Alert Banner (Military, Emergency, VIP) */
 #special-alert-banner {
     position: absolute;
-    top: 8px;
+    top: 38px;
     left: 8px;
     right: 8px;
     font-family: var(--font-mono);
@@ -126,13 +126,13 @@ body {
 /* Top Info - Flight Details (positioned at top) */
 #top-info {
     position: absolute;
-    top: 45px;
+    top: 55px;
     left: 0;
     right: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 2px;
+    gap: 6px;
     border: none;
 }
 
@@ -241,9 +241,9 @@ body {
 
 #route {
     font-family: var(--font-mono);
-    font-size: 1.25rem;
+    font-size: 1.4rem;
     font-weight: 700;
-    letter-spacing: 1px;
+    letter-spacing: 1.5px;
 }
 
 /* No Flights */
@@ -621,9 +621,23 @@ body {
 /* Bin Icon */
 #bin-container {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
     justify-content: center;
+    gap: 4px;
+    margin-left: 8px;
+}
+
+/* Bin icons sizing to match weather (20px) */
+#bin-container svg {
+    width: 20px;
+    height: 26px;
+}
+
+#bin-container .bin-label {
+    font-size: 12px;
+    font-weight: 700;
+    margin-left: 4px;
 }
 
 /* Satellite Banner */
@@ -671,6 +685,79 @@ body {
     font-family: var(--font-mono);
     font-size: 10px;
     font-weight: 700;
+}
+
+/* Now Playing (Spotify) */
+#now-playing {
+    position: absolute;
+    bottom: 22px;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--color-gray-dark);
+    overflow: hidden;
+}
+
+#now-playing-icon {
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+#now-playing-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 90%;
+}
+
+/* ==========================================
+   Literature Clock
+   ========================================== */
+
+#lit-clock {
+    text-align: center;
+    padding: 10px 15px;
+    max-width: 100%;
+}
+
+#lit-quote {
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    font-style: italic;
+    line-height: 1.4;
+    margin-bottom: 10px;
+    /* Allow more space for quotes - use calc based on display box */
+    max-height: none;
+    overflow: visible;
+    /* Smaller font for longer quotes */
+    word-wrap: break-word;
+}
+
+#lit-quote .lit-highlight {
+    font-weight: 700;
+    font-style: normal;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+#lit-attribution {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--color-gray-dark);
+    letter-spacing: 0.5px;
+}
+
+#lit-attribution .lit-title {
+    font-style: italic;
+}
+
+#lit-attribution .lit-author {
+    font-weight: 600;
 }
 
 /* Utility Classes */
@@ -1004,7 +1091,17 @@ screen and (max-width: 800px) and (max-height: 480px) {
     #bin-container {
         margin-left: auto;
         flex-direction: row;
-        gap: 5px;
+        gap: 4px;
+        align-items: center;
+    }
+
+    #bin-container svg {
+        width: 20px;
+        height: 26px;
+    }
+
+    #bin-container .bin-label {
+        font-size: 14px !important;
     }
 
     /* ==========================================

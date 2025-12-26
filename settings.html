@@ -310,6 +310,40 @@
             transform: translateX(22px);
         }
 
+        /* Buttons */
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            font-family: inherit;
+        }
+
+        .btn-spotify {
+            background: linear-gradient(135deg, #1DB954, #1aa34a);
+            color: #fff;
+        }
+
+        .btn-spotify:hover {
+            background: linear-gradient(135deg, #1ed760, #1DB954);
+            transform: translateY(-1px);
+        }
+
+        .btn-danger {
+            background: rgba(255, 107, 107, 0.15);
+            color: #ff6b6b;
+            border: 1px solid rgba(255, 107, 107, 0.3);
+        }
+
+        .btn-danger:hover {
+            background: rgba(255, 107, 107, 0.25);
+        }
+
         /* Range slider */
         input[type="range"] {
             -webkit-appearance: none;
@@ -700,6 +734,77 @@
             </div>
         </div>
 
+        <!-- Display Settings -->
+        <div class="settings-section">
+            <div class="section-header">
+                <div class="section-icon display">🕐</div>
+                <div class="section-title">Display</div>
+            </div>
+            <div class="section-content">
+                <div class="setting-row">
+                    <div class="setting-label">
+                        <h3>Clock Mode</h3>
+                        <p>Switch between digital time and literary quotes</p>
+                    </div>
+                    <div class="setting-control">
+                        <div class="radio-group" id="clock-mode">
+                            <label class="radio-option" data-value="regular">
+                                <input type="radio" name="clock-mode" value="regular">
+                                Digital
+                            </label>
+                            <label class="radio-option" data-value="literature">
+                                <input type="radio" name="clock-mode" value="literature">
+                                Literature
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Spotify Integration -->
+        <div class="settings-section">
+            <div class="section-header">
+                <div class="section-icon spotify">🎵</div>
+                <div class="section-title">Spotify Now Playing</div>
+            </div>
+            <div class="section-content">
+                <div class="setting-row">
+                    <div class="setting-label">
+                        <h3>Connection Status</h3>
+                        <p>Link your Spotify account to display currently playing track</p>
+                    </div>
+                    <div class="setting-control">
+                        <div id="spotify-status" style="display: flex; align-items: center; gap: 12px;">
+                            <span id="spotify-status-text" style="color: #888;">Checking...</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="setting-row" id="spotify-connect-row">
+                    <div class="setting-label">
+                        <h3>Connect Account</h3>
+                        <p>Authorize VectorClock to read your playback</p>
+                    </div>
+                    <div class="setting-control">
+                        <a href="/api/spotify/auth" class="btn btn-spotify" id="spotify-connect-btn">
+                            🎧 Connect Spotify
+                        </a>
+                    </div>
+                </div>
+                <div class="setting-row hidden" id="spotify-disconnect-row">
+                    <div class="setting-label">
+                        <h3>Disconnect</h3>
+                        <p>Remove Spotify connection</p>
+                    </div>
+                    <div class="setting-control">
+                        <button class="btn btn-danger" id="spotify-disconnect-btn">
+                            Disconnect
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Location Settings -->
         <div class="settings-section">
             <div class="section-header">
@@ -972,6 +1077,52 @@ RESCUE:Rescue Helicopter:Emergency"></textarea>
                     if (alertData.interval) document.getElementById('special-alert-interval').value = alertData.interval;
                 } catch (e) { }
 
+                // Load clock mode
+                try {
+                    const clockRes = await fetch('/api/config/clock-mode');
+                    const clockData = await clockRes.json();
+                    document.querySelectorAll('#clock-mode .radio-option').forEach(opt => {
+                        opt.classList.toggle('active', opt.dataset.value === clockData.mode);
+                    });
+                } catch (e) { }
+
+                // Load Spotify status
+                try {
+                    const spotifyRes = await fetch('/api/spotify/status');
+                    const spotifyData = await spotifyRes.json();
+                    const statusText = document.getElementById('spotify-status-text');
+                    const connectRow = document.getElementById('spotify-connect-row');
+                    const disconnectRow = document.getElementById('spotify-disconnect-row');
+
+                    if (!spotifyData.configured) {
+                        statusText.textContent = 'Not configured';
+                        statusText.style.color = '#888';
+                    } else if (spotifyData.connected) {
+                        statusText.textContent = '✓ Connected';
+                        statusText.style.color = '#1DB954';
+                        connectRow.classList.add('hidden');
+                        disconnectRow.classList.remove('hidden');
+                    } else {
+                        statusText.textContent = 'Not connected';
+                        statusText.style.color = '#ff6b6b';
+                        connectRow.classList.remove('hidden');
+                        disconnectRow.classList.add('hidden');
+                    }
+                } catch (e) {
+                    document.getElementById('spotify-status-text').textContent = 'Error';
+                }
+
+                // Spotify disconnect button
+                document.getElementById('spotify-disconnect-btn')?.addEventListener('click', async () => {
+                    try {
+                        await fetch('/api/spotify/disconnect', { method: 'POST' });
+                        showToast('Spotify disconnected');
+                        loadSettings(); // Reload to update status
+                    } catch (e) {
+                        showToast('Failed to disconnect', true);
+                    }
+                });
+
                 // Server status
                 document.getElementById('server-status').textContent = '✓ Online';
                 document.getElementById('server-status').style.color = '#22c55e';
@@ -1104,6 +1255,16 @@ RESCUE:Rescue Helicopter:Emergency"></textarea>
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ radius: specialAlertRadius, interval: specialAlertInterval })
                 });
+
+                // Save clock mode
+                const activeClockMode = document.querySelector('#clock-mode .radio-option.active');
+                if (activeClockMode) {
+                    await fetch('/api/config/clock-mode', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ mode: activeClockMode.dataset.value })
+                    });
+                }
 
                 showToast('✓ Settings saved!');
             } catch (e) {

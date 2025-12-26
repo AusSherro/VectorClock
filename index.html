@@ -54,8 +54,17 @@
 
                 <!-- Center: Clock (ALWAYS here, never moves) -->
                 <div id="clock-center">
-                    <div id="time"></div>
-                    <div id="date"></div>
+                    <!-- Regular Clock -->
+                    <div id="regular-clock">
+                        <div id="time"></div>
+                        <div id="date"></div>
+                    </div>
+
+                    <!-- Literature Clock (hidden by default) -->
+                    <div id="lit-clock" class="hidden">
+                        <div id="lit-quote"></div>
+                        <div id="lit-attribution"></div>
+                    </div>
                 </div>
 
                 <!-- Bottom: Route (BELOW clock) - shown when available -->
@@ -69,6 +78,12 @@
                 <div id="year-progress-container">
                     <div id="year-progress-bar"></div>
                     <span id="year-progress-text"></span>
+                </div>
+
+                <!-- Spotify Now Playing (shown when music is playing) -->
+                <div id="now-playing" class="hidden">
+                    <span id="now-playing-icon">♪</span>
+                    <span id="now-playing-text"></span>
                 </div>
             </div>
 
@@ -110,7 +125,8 @@
         </main>
     </div>
 
-    <script src="app.js?v=12"></script>
+    <script src="shared/icao-types.js?v=1"></script>
+    <script src="app.js?v=13"></script>
 </body>
 
 </html>

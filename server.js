@@ -5,11 +5,14 @@
  */
 
 const express = require('express');
-const fetch = require('node-fetch');
 const path = require('path');
 const fs = require('fs');
 const axios = require('axios');
 const https = require('https');
+const ngeohash = require('ngeohash');
+
+// Shared ICAO Type Names (centralized for server and client)
+const { ICAO_TYPE_NAMES, getAircraftName } = require('./shared/icao-types');
 
 // ==========================================
 // Local Aircraft Database (SQLite)
@@ -32,69 +35,7 @@ try {
     console.error('Aircraft DB init error:', e.message);
 }
 
-// ICAO Type Code to Proper Name mapping (most common seen in AU)
-const ICAO_TYPE_NAMES = {
-    // Boeing
-    'B788': 'Boeing 787-8 Dreamliner',
-    'B789': 'Boeing 787-9 Dreamliner',
-    'B78X': 'Boeing 787-10 Dreamliner',
-    'B737': 'Boeing 737',
-    'B738': 'Boeing 737-800',
-    'B739': 'Boeing 737-900',
-    'B38M': 'Boeing 737 MAX 8',
-    'B39M': 'Boeing 737 MAX 9',
-    'B772': 'Boeing 777-200',
-    'B773': 'Boeing 777-300',
-    'B77W': 'Boeing 777-300ER',
-    'B744': 'Boeing 747-400',
-    'B748': 'Boeing 747-8',
-    // Airbus
-    'A319': 'Airbus A319',
-    'A320': 'Airbus A320',
-    'A20N': 'Airbus A320neo',
-    'A321': 'Airbus A321',
-    'A21N': 'Airbus A321neo',
-    'A332': 'Airbus A330-200',
-    'A333': 'Airbus A330-300',
-    'A339': 'Airbus A330-900neo',
-    'A359': 'Airbus A350-900',
-    'A35K': 'Airbus A350-1000',
-    'A388': 'Airbus A380-800',
-    // Regional
-    'E190': 'Embraer E190',
-    'E195': 'Embraer E195',
-    'E290': 'Embraer E190-E2',
-    'DH8D': 'Dash 8 Q400',
-    'DH8C': 'Dash 8 Q300',
-    'DH8B': 'Dash 8 Q200',
-    'AT76': 'ATR 72-600',
-    'AT75': 'ATR 72-500',
-    'SF34': 'Saab 340',
-    'F100': 'Fokker 100',
-    // Business/Private
-    'GLF6': 'Gulfstream G650',
-    'GL7T': 'Gulfstream G700',
-    'GLEX': 'Bombardier Global Express',
-    'CL35': 'Bombardier Challenger 350',
-    'C680': 'Cessna Citation Sovereign',
-    'PC12': 'Pilatus PC-12',
-    'PC24': 'Pilatus PC-24',
-    // Helicopters
-    'EC35': 'Airbus EC135',
-    'EC45': 'Airbus EC145',
-    'EC55': 'Airbus EC155',
-    'AS50': 'Airbus AS350 Squirrel',
-    'B06': 'Bell 206',
-    'B412': 'Bell 412',
-    // Military
-    'C17': 'Boeing C-17 Globemaster III',
-    'C130': 'Lockheed C-130 Hercules',
-    'C30J': 'Lockheed C-130J Super Hercules',
-    'E737': 'Boeing E-7A Wedgetail',
-    'P8': 'Boeing P-8A Poseidon',
-    'PC21': 'Pilatus PC-21',
-    'HAWK': 'BAE Hawk',
-};
+// ICAO_TYPE_NAMES is now imported from ./shared/icao-types.js
 
 /**
  * Lookup aircraft by ICAO24 hex code in local database
@@ -126,6 +67,7 @@ function lookupAircraftLocal(icao24) {
 
 const app = express();
 const PORT = 3000;
+const HTTPS_PORT = 3001;
 
 // ==========================================
 // Configuration
@@ -140,6 +82,19 @@ try {
     }
 } catch (e) {
     console.error('Error loading config.json:', e);
+}
+
+// Helper to save config changes to config.json
+function saveConfig() {
+    try {
+        fs.writeFileSync(
+            path.join(__dirname, 'config.json'),
+            JSON.stringify(userConfig, null, 2)
+        );
+        console.log('✓ Config saved to config.json');
+    } catch (e) {
+        console.error('Error saving config.json:', e);
+    }
 }
 
 // OpenSky credentials
@@ -188,56 +143,154 @@ if (!fs.existsSync(LOGO_CACHE_DIR)) {
 }
 
 // ==========================================
-// Static Route Lookup (Common Australian Flights)
-// These rarely change, so we can serve them instantly without API calls
+// Spotify Integration
 // ==========================================
 
-const COMMON_ROUTES = {
-    // Qantas Domestic (QFA/QLK patterns)
-    'QFA4': { departure: 'SYD', arrival: 'MEL', airline: 'Qantas' }, // Sydney-Melbourne shuttle
-    'QFA5': { departure: 'SYD', arrival: 'BNE', airline: 'Qantas' }, // Sydney-Brisbane
-    'QFA6': { departure: 'SYD', arrival: 'PER', airline: 'Qantas' }, // Sydney-Perth
-    'QFA7': { departure: 'SYD', arrival: 'ADL', airline: 'Qantas' }, // Sydney-Adelaide
-    'QFA8': { departure: 'SYD', arrival: 'CNS', airline: 'Qantas' }, // Sydney-Cairns
-    'QFA9': { departure: 'SYD', arrival: 'OOL', airline: 'Qantas' }, // Sydney-Gold Coast
-
-    // Jetstar (JST patterns)
-    'JST4': { departure: 'SYD', arrival: 'MEL', airline: 'Jetstar' },
-    'JST5': { departure: 'SYD', arrival: 'BNE', airline: 'Jetstar' },
-    'JST6': { departure: 'SYD', arrival: 'OOL', airline: 'Jetstar' },
-    'JST7': { departure: 'SYD', arrival: 'CNS', airline: 'Jetstar' },
-    'JST8': { departure: 'SYD', arrival: 'MCY', airline: 'Jetstar' },
-
-    // Virgin Australia (VOZ patterns)
-    'VOZ4': { departure: 'SYD', arrival: 'MEL', airline: 'Virgin Australia' },
-    'VOZ5': { departure: 'SYD', arrival: 'BNE', airline: 'Virgin Australia' },
-    'VOZ6': { departure: 'SYD', arrival: 'ADL', airline: 'Virgin Australia' },
-    'VOZ7': { departure: 'SYD', arrival: 'PER', airline: 'Virgin Australia' },
-    'VOZ8': { departure: 'SYD', arrival: 'OOL', airline: 'Virgin Australia' },
-
-    // Rex Airlines (RXA/ZL patterns)
-    'RXA': { departure: 'SYD', arrival: 'Regional', airline: 'Rex Airlines' },
-    'ZL': { departure: 'SYD', arrival: 'Regional', airline: 'Rex Airlines' },
-
-    // International (common long-haul)
-    'QFA1': { departure: 'SYD', arrival: 'LHR', airline: 'Qantas' },
-    'QFA11': { departure: 'SYD', arrival: 'LAX', airline: 'Qantas' },
-    'QFA12': { departure: 'LAX', arrival: 'SYD', airline: 'Qantas' },
-    'QFA7': { departure: 'SYD', arrival: 'DFW', airline: 'Qantas' },
-
-    // NZ flights
-    'ANZ1': { departure: 'SYD', arrival: 'AKL', airline: 'Air New Zealand' },
-    'NZM': { departure: 'SYD', arrival: 'WLG', airline: 'Air New Zealand' },
+const SPOTIFY_CONFIG = {
+    CLIENT_ID: userConfig.spotifyClientId || '',
+    CLIENT_SECRET: userConfig.spotifyClientSecret || '',
+    // Redirect URI must EXACTLY match what's configured in Spotify Developer Dashboard
+    // Spotify Policy: "localhost is not allowed". "Use explicit IPv4... like http://127.0.0.1:PORT"
+    REDIRECT_URI: userConfig.spotifyRedirectUri || `http://127.0.0.1:${PORT}/api/spotify/callback`,
+    SCOPES: 'user-read-currently-playing user-read-playback-state'
 };
 
+// Log Spotify config on startup (helpful for debugging)
+if (SPOTIFY_CONFIG.CLIENT_ID) {
+    console.log(`✓ Spotify configured (Redirect: ${SPOTIFY_CONFIG.REDIRECT_URI})`);
+}
+
+// Spotify tokens (persisted in userConfig)
+let spotifyAccessToken = userConfig.spotifyAccessToken || null;
+let spotifyRefreshToken = userConfig.spotifyRefreshToken || null;
+let spotifyTokenExpiry = userConfig.spotifyTokenExpiry || 0;
+
+// Now Playing cache (5 second expiry - quick updates)
+let nowPlayingCache = null;
+let nowPlayingCacheExpiry = 0;
+const NOW_PLAYING_CACHE_MS = 5 * 1000;
+
 /**
- * lookupStaticRoute - DISABLED
- * Flight numbers don't follow predictable patterns by prefix
- * Always use API for accurate route info
- * @returns {null} - Always returns null so API is used
+ * Refresh Spotify access token using refresh token
  */
+async function refreshSpotifyToken() {
+    if (!spotifyRefreshToken || !SPOTIFY_CONFIG.CLIENT_ID) {
+        return null;
+    }
+
+    try {
+        const response = await axios.post('https://accounts.spotify.com/api/token',
+            new URLSearchParams({
+                grant_type: 'refresh_token',
+                refresh_token: spotifyRefreshToken
+            }).toString(),
+            {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Authorization': 'Basic ' + Buffer.from(
+                        SPOTIFY_CONFIG.CLIENT_ID + ':' + SPOTIFY_CONFIG.CLIENT_SECRET
+                    ).toString('base64')
+                },
+                timeout: 10000
+            }
+        );
+
+        spotifyAccessToken = response.data.access_token;
+        spotifyTokenExpiry = Date.now() + (response.data.expires_in * 1000) - 60000; // 1 min buffer
+
+        // Persist new token
+        userConfig.spotifyAccessToken = spotifyAccessToken;
+        userConfig.spotifyTokenExpiry = spotifyTokenExpiry;
+        if (response.data.refresh_token) {
+            spotifyRefreshToken = response.data.refresh_token;
+            userConfig.spotifyRefreshToken = spotifyRefreshToken;
+        }
+        saveConfig();
+
+        console.log('✓ Spotify token refreshed');
+        return spotifyAccessToken;
+    } catch (error) {
+        console.error('Spotify token refresh failed:', error.message);
+        return null;
+    }
+}
+
+/**
+ * Get valid Spotify access token (refresh if needed)
+ */
+async function getSpotifyToken() {
+    if (spotifyAccessToken && Date.now() < spotifyTokenExpiry) {
+        return spotifyAccessToken;
+    }
+    return await refreshSpotifyToken();
+}
+
+/**
+ * Fetch currently playing track from Spotify
+ */
+async function fetchNowPlaying() {
+    // Check cache
+    if (nowPlayingCache && Date.now() < nowPlayingCacheExpiry) {
+        return nowPlayingCache;
+    }
+
+    const token = await getSpotifyToken();
+    if (!token) {
+        return { playing: false, error: 'Not authenticated' };
+    }
+
+    try {
+        const response = await axios.get('https://api.spotify.com/v1/me/player/currently-playing', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+            timeout: 5000
+        });
+
+        // 204 = nothing playing
+        if (response.status === 204 || !response.data) {
+            nowPlayingCache = { playing: false };
+            nowPlayingCacheExpiry = Date.now() + NOW_PLAYING_CACHE_MS;
+            return nowPlayingCache;
+        }
+
+        const data = response.data;
+        const track = data.item;
+
+        nowPlayingCache = {
+            playing: data.is_playing,
+            track: track?.name || null,
+            artist: track?.artists?.map(a => a.name).join(', ') || null,
+            album: track?.album?.name || null,
+            albumArt: track?.album?.images?.[0]?.url || null,
+            albumArtSmall: track?.album?.images?.[2]?.url || null,
+            progress: data.progress_ms,
+            duration: track?.duration_ms,
+            trackUrl: track?.external_urls?.spotify || null,
+            timestamp: Date.now()
+        };
+        nowPlayingCacheExpiry = Date.now() + NOW_PLAYING_CACHE_MS;
+
+        if (nowPlayingCache.playing) {
+            console.log(`♪ Now Playing: ${nowPlayingCache.artist} - ${nowPlayingCache.track}`);
+        }
+
+        return nowPlayingCache;
+    } catch (error) {
+        if (error.response?.status === 401) {
+            // Token expired, try refresh
+            spotifyAccessToken = null;
+            return await fetchNowPlaying();
+        }
+        console.error('Spotify Now Playing error:', error.message);
+        return { playing: false, error: error.message };
+    }
+}
+
+
+// lookupStaticRoute - DISABLED (API is more accurate)
 function lookupStaticRoute(callsign) {
-    return null; // Static lookup disabled - API is more accurate
+    return null;
 }
 
 // Serve static files from current directory
@@ -484,7 +537,7 @@ function getWeatherInfo(code) {
     return weatherMap[code] || { icon: '○', desc: 'Unknown' };
 }
 
-// Fetch weather data from Open-Meteo API
+// Fetch weather data from BOM API (with Open-Meteo fallback)
 async function fetchWeather() {
     // Return cached data if still valid
     if (weatherCache && Date.now() < weatherCacheExpiry) {
@@ -492,31 +545,40 @@ async function fetchWeather() {
     }
 
     try {
-        // Weather API (Forecast) - now includes precipitation probability
-        const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${LOCATION.latitude}&longitude=${LOCATION.longitude}&current=temperature_2m,weather_code,wind_speed_10m,precipitation_probability&timezone=Australia/Sydney`;
+        // Convert lat/lon to geohash for BOM API (6-char precision required)
+        const geohash = ngeohash.encode(LOCATION.latitude, LOCATION.longitude, 6);
+        const bomUrl = `https://api.weather.bom.gov.au/v1/locations/${geohash}/observations`;
 
-        // Air Quality API (Separate endpoint)
+        // AQI from Open-Meteo (BOM doesn't provide AQI)
         const aqiUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${LOCATION.latitude}&longitude=${LOCATION.longitude}&current=us_aqi&timezone=Australia/Sydney`;
 
-        console.log(`Fetching weather: ${weatherUrl}`);
-        console.log(`Fetching AQI: ${aqiUrl}`);
+        console.log(`Fetching BOM weather: ${bomUrl}`);
 
-        // Parallel fetch
-        const [weatherResponse, aqiResponse] = await Promise.all([
-            axios.get(weatherUrl, { timeout: 10000, httpsAgent: new https.Agent({ family: 4 }) }),
-            axios.get(aqiUrl, { timeout: 10000, httpsAgent: new https.Agent({ family: 4 }) }).catch(() => null) // AQI optional
+        // Parallel fetch BOM + AQI
+        const [bomResponse, aqiResponse] = await Promise.all([
+            axios.get(bomUrl, {
+                timeout: 10000,
+                httpsAgent: new https.Agent({ family: 4 }),
+                headers: { 'User-Agent': 'VectorClock/1.0' }
+            }),
+            axios.get(aqiUrl, { timeout: 10000, httpsAgent: new https.Agent({ family: 4 }) }).catch(() => null)
         ]);
 
-        const weatherData = weatherResponse.data;
+        const bomData = bomResponse.data;
 
-        // Validate response structure
-        if (!weatherData || !weatherData.current) {
-            console.error('Weather API invalid response');
-            throw new Error('Invalid weather data structure');
+        // Validate BOM response
+        if (!bomData || !bomData.data) {
+            throw new Error('Invalid BOM response structure');
         }
 
-        const current = weatherData.current;
-        const weatherInfo = getWeatherInfo(current.weather_code);
+        const obs = bomData.data;
+
+        // Determine weather icon from BOM conditions
+        let icon = '○';
+        if (obs.rain_since_9am > 0) icon = '🌧';
+        else if (obs.humidity > 85) icon = '☁';
+        else if (obs.humidity > 60) icon = '⛅';
+        else icon = '☀';
 
         // Extract AQI if available
         let aqi = null;
@@ -525,26 +587,77 @@ async function fetchWeather() {
         }
 
         weatherCache = {
-            temp: Math.round(current.temperature_2m),
-            tempUnit: weatherData.current_units?.temperature_2m || '°C',
-            icon: weatherInfo.icon,
-            condition: weatherInfo.desc,
-            windSpeed: Math.round(current.wind_speed_10m),
-            windUnit: weatherData.current_units?.wind_speed_10m || 'km/h',
-            rainChance: current.precipitation_probability ?? null, // Rain chance %
+            temp: Math.round(obs.temp),
+            feelsLike: obs.temp_feels_like ? Math.round(obs.temp_feels_like) : null,
+            humidity: obs.humidity,
+            icon: icon,
+            condition: obs.rain_since_9am > 0 ? 'Rain' : 'Fine',
+            rainSince9am: obs.rain_since_9am > 0 ? obs.rain_since_9am : null, // Only show if > 0
             aqi: aqi,
             location: LOCATION.name,
+            source: 'bom',
+            station: bomData.metadata?.name || 'Unknown Station',
             timestamp: new Date().toISOString()
         };
         weatherCacheExpiry = Date.now() + WEATHER_CACHE_MS;
 
-        console.log(`✓ Weather updated: ${weatherCache.temp}°C, ${weatherCache.condition}, Rain: ${weatherCache.rainChance}%, AQI: ${weatherCache.aqi}`);
+        console.log(`✓ BOM Weather: ${weatherCache.temp}°C (feels ${weatherCache.feelsLike}°C), Humidity: ${weatherCache.humidity}%, Rain: ${weatherCache.rainSince9am || 0}mm, AQI: ${weatherCache.aqi}`);
         return weatherCache;
 
     } catch (error) {
-        console.error('Weather fetch error:', error.message);
+        console.error('BOM Weather fetch failed:', error.message);
+        console.log('Falling back to Open-Meteo...');
+
+        // Fallback to Open-Meteo
+        return await fetchWeatherFallback();
+    }
+}
+
+// Open-Meteo fallback weather fetch
+async function fetchWeatherFallback() {
+    try {
+        const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${LOCATION.latitude}&longitude=${LOCATION.longitude}&current=temperature_2m,weather_code,relative_humidity_2m,apparent_temperature&timezone=Australia/Sydney`;
+        const aqiUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${LOCATION.latitude}&longitude=${LOCATION.longitude}&current=us_aqi&timezone=Australia/Sydney`;
+
+        const [weatherResponse, aqiResponse] = await Promise.all([
+            axios.get(weatherUrl, { timeout: 10000, httpsAgent: new https.Agent({ family: 4 }) }),
+            axios.get(aqiUrl, { timeout: 10000, httpsAgent: new https.Agent({ family: 4 }) }).catch(() => null)
+        ]);
+
+        const weatherData = weatherResponse.data;
+        if (!weatherData || !weatherData.current) {
+            throw new Error('Invalid Open-Meteo response');
+        }
+
+        const current = weatherData.current;
+        const weatherInfo = getWeatherInfo(current.weather_code);
+
+        let aqi = null;
+        if (aqiResponse && aqiResponse.data && aqiResponse.data.current) {
+            aqi = aqiResponse.data.current.us_aqi;
+        }
+
+        weatherCache = {
+            temp: Math.round(current.temperature_2m),
+            feelsLike: current.apparent_temperature ? Math.round(current.apparent_temperature) : null,
+            humidity: current.relative_humidity_2m,
+            icon: weatherInfo.icon,
+            condition: weatherInfo.desc,
+            rainSince9am: null,
+            aqi: aqi,
+            location: LOCATION.name,
+            source: 'open-meteo',
+            timestamp: new Date().toISOString()
+        };
+        weatherCacheExpiry = Date.now() + WEATHER_CACHE_MS;
+
+        console.log(`✓ Open-Meteo Weather: ${weatherCache.temp}°C, ${weatherCache.condition}, AQI: ${weatherCache.aqi}`);
+        return weatherCache;
+
+    } catch (error) {
+        console.error('Open-Meteo fallback failed:', error.message);
         if (weatherCache) return weatherCache;
-        return { temp: '--', windSpeed: '--', error: error.message };
+        return { temp: '--', error: error.message };
     }
 }
 
@@ -613,12 +726,8 @@ async function fetchISS() {
     }
 
     try {
-        const response = await fetch('http://api.open-notify.org/iss-now.json');
-        if (!response.ok) {
-            throw new Error(`ISS API error: ${response.status}`);
-        }
-
-        const data = await response.json();
+        const response = await axios.get('http://api.open-notify.org/iss-now.json', { timeout: 5000 });
+        const data = response.data;
         const issLat = parseFloat(data.iss_position.latitude);
         const issLon = parseFloat(data.iss_position.longitude);
 
@@ -689,6 +798,135 @@ app.get('/api/iss', async (req, res) => {
 // Satellite endpoint
 app.get('/api/satellite', (req, res) => {
     res.json(satelliteCache || {});
+});
+
+// ==========================================
+// Spotify API Endpoints
+// ==========================================
+
+// Start Spotify OAuth flow
+app.get('/api/spotify/auth', (req, res) => {
+    if (!SPOTIFY_CONFIG.CLIENT_ID) {
+        return res.status(400).json({
+            error: 'Spotify not configured',
+            message: 'Add spotifyClientId and spotifyClientSecret to config.json'
+        });
+    }
+
+    const authUrl = 'https://accounts.spotify.com/authorize?' + new URLSearchParams({
+        response_type: 'code',
+        client_id: SPOTIFY_CONFIG.CLIENT_ID,
+        scope: SPOTIFY_CONFIG.SCOPES,
+        redirect_uri: SPOTIFY_CONFIG.REDIRECT_URI,
+        state: 'vectorclock'
+    }).toString();
+
+    res.redirect(authUrl);
+});
+
+// Spotify OAuth callback
+app.get('/api/spotify/callback', async (req, res) => {
+    const { code, error } = req.query;
+
+    if (error) {
+        return res.send(`<h1>Spotify Authorization Failed</h1><p>${error}</p><a href="/settings.html">Back to Settings</a>`);
+    }
+
+    if (!code) {
+        return res.status(400).send('Missing authorization code');
+    }
+
+    try {
+        const response = await axios.post('https://accounts.spotify.com/api/token',
+            new URLSearchParams({
+                grant_type: 'authorization_code',
+                code: code,
+                redirect_uri: SPOTIFY_CONFIG.REDIRECT_URI
+            }).toString(),
+            {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Authorization': 'Basic ' + Buffer.from(
+                        SPOTIFY_CONFIG.CLIENT_ID + ':' + SPOTIFY_CONFIG.CLIENT_SECRET
+                    ).toString('base64')
+                },
+                timeout: 10000
+            }
+        );
+
+        // Save tokens
+        spotifyAccessToken = response.data.access_token;
+        spotifyRefreshToken = response.data.refresh_token;
+        spotifyTokenExpiry = Date.now() + (response.data.expires_in * 1000) - 60000;
+
+        userConfig.spotifyAccessToken = spotifyAccessToken;
+        userConfig.spotifyRefreshToken = spotifyRefreshToken;
+        userConfig.spotifyTokenExpiry = spotifyTokenExpiry;
+        saveConfig();
+
+        console.log('✓ Spotify connected successfully');
+
+        res.send(`
+            <html>
+            <head>
+                <style>
+                    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
+                           display: flex; justify-content: center; align-items: center; 
+                           height: 100vh; margin: 0; background: #1DB954; color: white; }
+                    .box { text-align: center; }
+                    h1 { font-size: 2em; margin-bottom: 0.5em; }
+                    a { color: white; }
+                </style>
+            </head>
+            <body>
+                <div class="box">
+                    <h1>✓ Spotify Connected!</h1>
+                    <p>Now Playing will appear on your display.</p>
+                    <p><a href="/settings.html">Back to Settings</a></p>
+                </div>
+            </body>
+            </html>
+        `);
+    } catch (error) {
+        console.error('Spotify token exchange failed:', error.message);
+        res.status(500).send(`<h1>Error</h1><p>${error.message}</p><a href="/settings.html">Back to Settings</a>`);
+    }
+});
+
+// Get Spotify connection status
+app.get('/api/spotify/status', (req, res) => {
+    res.json({
+        configured: !!SPOTIFY_CONFIG.CLIENT_ID,
+        connected: !!spotifyRefreshToken,
+        hasToken: !!spotifyAccessToken,
+        tokenValid: Date.now() < spotifyTokenExpiry
+    });
+});
+
+// Get currently playing track
+app.get('/api/spotify/now-playing', async (req, res) => {
+    try {
+        const nowPlaying = await fetchNowPlaying();
+        res.json(nowPlaying);
+    } catch (error) {
+        res.status(500).json({ playing: false, error: error.message });
+    }
+});
+
+// Disconnect Spotify
+app.post('/api/spotify/disconnect', (req, res) => {
+    spotifyAccessToken = null;
+    spotifyRefreshToken = null;
+    spotifyTokenExpiry = 0;
+    nowPlayingCache = null;
+
+    delete userConfig.spotifyAccessToken;
+    delete userConfig.spotifyRefreshToken;
+    delete userConfig.spotifyTokenExpiry;
+    saveConfig();
+
+    console.log('✓ Spotify disconnected');
+    res.json({ success: true, message: 'Spotify disconnected' });
 });
 
 // ==========================================
@@ -1343,11 +1581,16 @@ app.post('/api/config/kindle', (req, res) => {
 
     if (typeof ip === 'string' && ip.length > 0) {
         KINDLE_CONFIG.ip = ip.trim();
+        userConfig.kindleIp = ip.trim();
     }
 
     if (typeof refreshInterval === 'number' && refreshInterval >= 10 && refreshInterval <= 120) {
         KINDLE_CONFIG.refreshInterval = refreshInterval;
+        userConfig.kindleRefresh = refreshInterval;
     }
+
+    // Persist to config.json
+    saveConfig();
 
     console.log(`Kindle config updated: IP=${KINDLE_CONFIG.ip}, Refresh=${KINDLE_CONFIG.refreshInterval}s`);
     res.json({ success: true, ...KINDLE_CONFIG });
@@ -1445,6 +1688,209 @@ app.post('/api/config/custom-aircraft', (req, res) => {
 
     console.log(`Custom aircraft updated: ${CUSTOM_AIRCRAFT.rareTypes.length} rare types, ${Object.keys(CUSTOM_AIRCRAFT.specialCallsigns).length} special callsigns`);
     res.json({ success: true, ...CUSTOM_AIRCRAFT });
+});
+
+// ==========================================
+// Literature Clock
+// ==========================================
+
+// Load literature clock quotes from JSON file
+let litclockQuotes = null;
+const LITCLOCK_PATH = path.join(__dirname, 'litclock_quotes.json');
+
+try {
+    if (fs.existsSync(LITCLOCK_PATH)) {
+        litclockQuotes = JSON.parse(fs.readFileSync(LITCLOCK_PATH, 'utf8'));
+        console.log(`✓ Literature clock loaded (${Object.keys(litclockQuotes).length} times covered)`);
+    } else {
+        console.warn('! litclock_quotes.json not found - run "node convert_litclock.js" to create it');
+    }
+} catch (e) {
+    console.error('Error loading literature clock quotes:', e.message);
+}
+
+// Clock mode setting (regular or literature)
+let CLOCK_MODE = userConfig.clockMode || 'regular';
+
+app.get('/api/config/clock-mode', (req, res) => {
+    res.json({ mode: CLOCK_MODE });
+});
+
+app.post('/api/config/clock-mode', (req, res) => {
+    const { mode } = req.body;
+    if (['regular', 'literature'].includes(mode)) {
+        CLOCK_MODE = mode;
+        userConfig.clockMode = mode;
+        saveConfig();
+        console.log(`Clock mode updated: ${CLOCK_MODE}`);
+        res.json({ success: true, mode: CLOCK_MODE });
+    } else {
+        res.status(400).json({ error: 'Invalid mode. Use: regular or literature' });
+    }
+});
+
+// Get a quote for a specific time (HH:MM format)
+app.get('/api/litclock/:time', (req, res) => {
+    if (!litclockQuotes) {
+        return res.status(503).json({
+            error: 'Literature clock not available',
+            message: 'Run "node convert_litclock.js" to download quotes'
+        });
+    }
+
+    const time = req.params.time;
+
+    // Validate time format
+    if (!/^\d{2}:\d{2}$/.test(time)) {
+        return res.status(400).json({ error: 'Invalid time format. Use HH:MM' });
+    }
+
+    // Try exact time first
+    let quotes = litclockQuotes[time];
+
+    // If no quote for this minute, try nearby times (±5 minutes)
+    if (!quotes || quotes.length === 0) {
+        const [hours, minutes] = time.split(':').map(Number);
+
+        for (let offset = 1; offset <= 5; offset++) {
+            // Try +offset and -offset
+            for (const delta of [offset, -offset]) {
+                let newMinutes = minutes + delta;
+                let newHours = hours;
+
+                if (newMinutes >= 60) {
+                    newMinutes -= 60;
+                    newHours = (newHours + 1) % 24;
+                } else if (newMinutes < 0) {
+                    newMinutes += 60;
+                    newHours = (newHours - 1 + 24) % 24;
+                }
+
+                const nearbyTime = `${String(newHours).padStart(2, '0')}:${String(newMinutes).padStart(2, '0')}`;
+                quotes = litclockQuotes[nearbyTime];
+
+                if (quotes && quotes.length > 0) {
+                    break;
+                }
+            }
+
+            if (quotes && quotes.length > 0) break;
+        }
+    }
+
+    if (!quotes || quotes.length === 0) {
+        return res.status(404).json({
+            error: 'No quote found',
+            time: time
+        });
+    }
+
+    // Return a random quote if multiple exist for this time
+    const quote = quotes[Math.floor(Math.random() * quotes.length)];
+
+    res.json({
+        time: time,
+        ...quote
+    });
+});
+
+// ==========================================
+// Spotify API Routes
+// ==========================================
+
+// 1. Initiate Auth Flow
+app.get('/api/spotify/auth', (req, res) => {
+    if (!SPOTIFY_CONFIG.CLIENT_ID) {
+        return res.status(500).send('Spotify Client ID not configured');
+    }
+
+    const state = Math.random().toString(36).substring(7);
+    const scope = SPOTIFY_CONFIG.SCOPES;
+
+    const params = new URLSearchParams({
+        response_type: 'code',
+        client_id: SPOTIFY_CONFIG.CLIENT_ID,
+        scope: scope,
+        redirect_uri: SPOTIFY_CONFIG.REDIRECT_URI,
+        state: state
+    });
+
+    res.redirect('https://accounts.spotify.com/authorize?' + params.toString());
+});
+
+// 2. Auth Callback
+app.get('/api/spotify/callback', async (req, res) => {
+    const code = req.query.code || null;
+    const state = req.query.state || null;
+
+    if (code === null) {
+        return res.redirect('/settings.html?error=spotify_denied');
+    }
+
+    try {
+        const response = await axios.post('https://accounts.spotify.com/api/token',
+            new URLSearchParams({
+                code: code,
+                redirect_uri: SPOTIFY_CONFIG.REDIRECT_URI,
+                grant_type: 'authorization_code'
+            }).toString(),
+            {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Authorization': 'Basic ' + Buffer.from(
+                        SPOTIFY_CONFIG.CLIENT_ID + ':' + SPOTIFY_CONFIG.CLIENT_SECRET
+                    ).toString('base64')
+                }
+            }
+        );
+
+        // Save tokens
+        spotifyAccessToken = response.data.access_token;
+        spotifyRefreshToken = response.data.refresh_token;
+        spotifyTokenExpiry = Date.now() + (response.data.expires_in * 1000) - 60000;
+
+        userConfig.spotifyAccessToken = spotifyAccessToken;
+        userConfig.spotifyRefreshToken = spotifyRefreshToken;
+        userConfig.spotifyTokenExpiry = spotifyTokenExpiry;
+        saveConfig();
+
+        console.log('✓ Spotify authenticated successfully!');
+        res.redirect('/settings.html?success=spotify_connected');
+
+    } catch (error) {
+        console.error('Spotify auth error:', error.response?.data || error.message);
+        res.redirect('/settings.html?error=spotify_failed');
+    }
+});
+
+// 3. Status Endpoint
+app.get('/api/spotify/status', (req, res) => {
+    res.json({
+        configured: !!SPOTIFY_CONFIG.CLIENT_ID,
+        connected: !!spotifyRefreshToken,
+        hasToken: !!spotifyAccessToken,
+        tokenValid: Date.now() < spotifyTokenExpiry
+    });
+});
+
+// 4. Disconnect Endpoint
+app.post('/api/spotify/disconnect', (req, res) => {
+    spotifyAccessToken = null;
+    spotifyRefreshToken = null;
+    spotifyTokenExpiry = 0;
+
+    delete userConfig.spotifyAccessToken;
+    delete userConfig.spotifyRefreshToken;
+    delete userConfig.spotifyTokenExpiry;
+    saveConfig();
+
+    res.json({ success: true });
+});
+
+// 5. Now Playing Endpoint
+app.get('/api/spotify/now-playing', async (req, res) => {
+    const data = await fetchNowPlaying();
+    res.json(data);
 });
 
 // ==========================================
@@ -1821,28 +2267,6 @@ app.get('/api/flight-info/:callsign', async (req, res) => {
 });
 
 // ==========================================
-// Flight Data Source Configuration
-// 'opensky' - OpenSky Network (rate limited, requires auth)
-// 'adsblol' - ADSB.lol (no rate limits, no auth required)
-// ==========================================
-let FLIGHT_SOURCE = userConfig.flightSource || 'adsblol'; // Default to ADSB.lol (no rate limits!)
-
-app.get('/api/config/flight-source', (req, res) => {
-    res.json({ source: FLIGHT_SOURCE });
-});
-
-app.post('/api/config/flight-source', (req, res) => {
-    const { source } = req.body;
-    if (['opensky', 'adsblol'].includes(source)) {
-        FLIGHT_SOURCE = source;
-        console.log(`Flight source updated: ${FLIGHT_SOURCE.toUpperCase()}`);
-        res.json({ success: true, source: FLIGHT_SOURCE });
-    } else {
-        res.status(400).json({ error: 'Invalid source. Use: opensky or adsblol' });
-    }
-});
-
-// ==========================================
 // OpenSky Authentication
 // ==========================================
 
@@ -2047,7 +2471,7 @@ app.listen(PORT, () => {
 ╔════════════════════════════════════════════╗
 ║     Flight Tracker Server Running          ║
 ╠════════════════════════════════════════════╣
-║  Open: http://localhost:${PORT}              ║
+║  HTTP:  http://localhost:${PORT}              ║
 ║                                            ║
 ║  API Endpoints:                            ║
 ║  • /api/opensky  - Flight data             ║
@@ -2066,3 +2490,28 @@ app.listen(PORT, () => {
     setInterval(fetchWeather, 10 * 60 * 1000);
     setInterval(fetchSatellitePasses, 60 * 60 * 1000); // Check hourly
 });
+
+// Start HTTPS server for Spotify OAuth (requires certs)
+const CERT_DIR = path.join(__dirname, 'certs');
+const KEY_FILE = path.join(CERT_DIR, 'key.pem');
+const CERT_FILE = path.join(CERT_DIR, 'cert.pem');
+
+if (fs.existsSync(KEY_FILE) && fs.existsSync(CERT_FILE)) {
+    try {
+        const httpsOptions = {
+            key: fs.readFileSync(KEY_FILE),
+            cert: fs.readFileSync(CERT_FILE)
+        };
+
+        https.createServer(httpsOptions, app).listen(HTTPS_PORT, () => {
+            console.log(`✓ HTTPS server running on https://localhost:${HTTPS_PORT}`);
+            console.log(`  Spotify OAuth redirect: ${SPOTIFY_CONFIG.REDIRECT_URI}`);
+        });
+    } catch (e) {
+        console.warn(`! HTTPS failed to start: ${e.message}`);
+        console.warn(`  Run "node generate-certs.js" to create SSL certificates`);
+    }
+} else {
+    console.warn('! HTTPS not available (no certificates found)');
+    console.warn('  Run "node generate-certs.js" to enable HTTPS for Spotify');
+}

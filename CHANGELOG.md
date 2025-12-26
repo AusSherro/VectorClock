@@ -1,6 +1,55 @@
 # Changelog
 
+## [1.7.0] - 2025-12-27 - Literature Clock & Spotify Integration
+
+### Added
+- **Literature Clock Mode**:
+  - Displays current time using quotes from books (1,400+ quotes)
+  - Toggle between Digital and Literature modes in Settings
+  - Auto-downloads quote database via `convert_litclock.js`
+  - Fallback logic to find nearby quotes if exact minute is missing
+- **Spotify "Now Playing" Integration**:
+  - OAuth2 authenticaton flow
+  - Displays currently playing track metadata
+  - "Connect Spotify" button in Settings page
+  - Connection status real-time updates
+- **New API Endpoints**:
+  - `/api/litclock/:time`: Fetch literary quotes
+  - `/api/spotify/*`: Auth, Callback, Status, Now Playing
+  - `/api/config/clock-mode`: Persist clock preferences
+
+### Changed
+- **Spotify Security**: Implemented HTTP Loopback IP (`127.0.0.1`) compliance for Spotify Developer Policy
+- **Settings Page**: Added valid connection status checks and mode toggles
+- **Server**: Configured to run on HTTP port 3000 (standardized)
+
+---
+
+## [1.6.0] - 2025-12-26 - Native E-Paper Display Driver
+
+### Added
+- **Native Python E-Paper Driver** (`epaper-display.py`):
+  - Direct rendering for Waveshare 4.26" HAT (800x480)
+  - No intermediate PNG files - draws directly to display
+  - Partial refresh for clock updates (~0.3s vs 3s full refresh)
+  - Minute-accurate clock synchronization
+  - Flight detection triggers instant partial update
+  - Full refresh every 6 hours to prevent ghosting
+  - Simulation mode for testing on non-Pi systems
+- **Pi Setup Files**:
+  - `requirements-pi.txt` - Python dependencies
+  - Setup instructions in README.md
+- **New npm script**: `npm run epaper` - Run Python e-paper driver
+
+### Changed
+- Updated README with Raspberry Pi e-paper setup section
+- Updated .gitignore for Python artifacts
+- Added `epaper-display.py` to project structure
+
+---
+
 ## [1.5.1] - 2025-12-22 - Settings UI Overhaul
+
 
 ### Added
 - **Kindle Heartbeat System**:

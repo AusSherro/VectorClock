@@ -91,6 +91,63 @@ sudo systemctl start vectorclock
 
 ---
 
+## Native E-Paper Display (Waveshare 4.26" HAT)
+
+The preferred mode for production deployment on Raspberry Pi Zero 2 W.
+
+### Setup
+```bash
+# Enable SPI
+sudo raspi-config  # Interface Options → SPI → Enable
+
+# Install Python dependencies
+pip3 install -r requirements-pi.txt
+
+# Clone Waveshare library
+git clone https://github.com/waveshare/e-Paper.git
+cp e-Paper/RaspberryPi_JetsonNano/python/lib/waveshare_epd/epd4in26.py ./
+```
+
+### Run with Server
+```bash
+npm start &                  # Start Node.js server in background
+python3 epaper-display.py    # Start e-paper display driver
+```
+
+### Run as Service
+Create `/etc/systemd/system/vectorclock-epaper.service`:
+```ini
+[Unit]
+Description=VectorClock E-Paper Display
+After=network.target vectorclock.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/vector-clock
+ExecStart=/usr/bin/python3 epaper-display.py
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable:
+```bash
+sudo systemctl enable vectorclock-epaper
+sudo systemctl start vectorclock-epaper
+```
+
+### Features
+- **Partial refresh**: Clock updates in ~0.3s (vs 3s full refresh)
+- **Anti-ghosting**: Full refresh every 6 hours
+- **Low power**: No browser/Puppeteer overhead
+- **Memory efficient**: Designed for Pi Zero's 512MB RAM
+
+---
+
+
 ## Kindle Paperwhite Display (Temporary/Testing)
 
 Use a jailbroken Kindle Paperwhite as an E-Ink display before buying dedicated hardware.

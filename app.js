@@ -163,74 +163,13 @@ const AIRLINES = {
     'RAM': 'Royal Air Maroc', 'AT': 'Royal Air Maroc'
 };
 
-// ICAO Type Code to Friendly Names (most common in AU)
-const ICAO_TYPE_NAMES = {
-    // Boeing
-    'B788': 'Boeing 787-8', 'B789': 'Boeing 787-9', 'B78X': 'Boeing 787-10',
-    'B737': 'Boeing 737', 'B738': 'Boeing 737-800', 'B739': 'Boeing 737-900',
-    'B38M': 'Boeing 737 MAX 8', 'B39M': 'Boeing 737 MAX 9',
-    'B77W': 'Boeing 777-300ER', 'B77L': 'Boeing 777-200LR', 'B772': 'Boeing 777-200',
-    'B744': 'Boeing 747-400', 'B748': 'Boeing 747-8',
-    // Airbus
-    'A388': 'Airbus A380', 'A359': 'Airbus A350-900', 'A35K': 'Airbus A350-1000',
-    'A333': 'Airbus A330-300', 'A332': 'Airbus A330-200', 'A339': 'Airbus A330-900neo',
-    'A321': 'Airbus A321', 'A21N': 'Airbus A321neo', 'A320': 'Airbus A320', 'A20N': 'Airbus A320neo',
-    'A319': 'Airbus A319',
-    // Regional
-    'E190': 'Embraer E190', 'E195': 'Embraer E195', 'E170': 'Embraer E170',
-    'DH8D': 'Dash 8-Q400', 'DH8C': 'Dash 8-Q300', 'AT76': 'ATR 72-600',
-    'CRJ7': 'CRJ-700', 'CRJ9': 'CRJ-900',
-    // Small/Private
-    'C172': 'Cessna 172', 'C208': 'Cessna Caravan', 'PC12': 'Pilatus PC-12',
-    'BE20': 'Beechcraft King Air', 'PA28': 'Piper Cherokee',
-    // Military
-    'C17': 'C-17 Globemaster', 'C130': 'C-130 Hercules', 'C30J': 'C-130J Super Hercules',
-    'E737': 'E-7A Wedgetail', 'P8': 'P-8A Poseidon', 'F35': 'F-35 Lightning II',
-    'FA18': 'F/A-18 Hornet', 'F18S': 'F/A-18F Super Hornet', 'HAWK': 'BAE Hawk',
-    'PC21': 'Pilatus PC-21', 'A332': 'KC-30A MRTT', 'KC30': 'KC-30A MRTT',
-    'C5': 'C-5M Galaxy', 'B52': 'B-52 Stratofortress', 'KC10': 'KC-10 Extender',
-    'KC35': 'KC-135 Stratotanker',
-    'A124': 'Antonov An-124', 'AN12': 'Antonov An-12',
-    // Classics
-    'A343': 'Airbus A340-300', 'A345': 'Airbus A340-500', 'A346': 'Airbus A340-600',
-    'MD11': 'McDonnell Douglas MD-11', 'DC10': 'McDonnell Douglas DC-10',
-    'L101': 'Lockheed L-1011', 'CONC': 'Concorde',
-    // VIP
-    'GLF6': 'Gulfstream G650', 'GL7T': 'Gulfstream G700', 'GLEX': 'Bombardier Global',
-    'G280': 'Gulfstream G280',
-    // Special
-    'A3ST': 'Airbus Beluga', 'BLCF': 'Boeing Dreamlifter'
-};
-
-// Helper to resolve aircraft names
-function getAircraftName(typeCode) {
-    if (!typeCode) return 'Unknown Aircraft';
-    // Direct match
-    if (ICAO_TYPE_NAMES[typeCode]) return ICAO_TYPE_NAMES[typeCode];
-
-    // Prefix matching for Boeing/Airbus generic
-    if (typeCode.startsWith('B78')) return 'Boeing 787 Dreamliner';
-    if (typeCode.startsWith('B77')) return 'Boeing 777';
-    if (typeCode.startsWith('B74')) return 'Boeing 747';
-    if (typeCode.startsWith('A38')) return 'Airbus A380';
-    if (typeCode.startsWith('A35')) return 'Airbus A350';
-    if (typeCode.startsWith('A34')) return 'Airbus A340';
-    if (typeCode.startsWith('A33')) return 'Airbus A330';
-    if (typeCode.startsWith('C130')) return 'C-130 Hercules';
-
-    return typeCode; // Fallback to code
-}
+// ICAO Type Code to Friendly Names
+// Now loaded from shared/icao-types.js (included via script tag in HTML)
+// This provides ICAO_TYPE_NAMES object and getAircraftName() function
 
 // Rare/Special Aircraft Types (ICAO typecodes)
 // Uses startsWith() matching so 'B74' matches B744, B748, etc.
 const RARE_AIRCRAFT = [
-    // === WIDEBODIES (Exciting to spot) ===
-    'A388', // Airbus A380-800 (Qantas, Emirates, Singapore)
-    'A35',  // Airbus A350 (All variants - modern widebody)
-    'B78',  // Boeing 787 Dreamliner (All variants)
-    'B77',  // Boeing 777 (All variants)
-    'B74',  // Boeing 747 (All variants - Queen of the Skies)
-
     // === CLASSIC/RETIRED ===
     'A34',  // Airbus A340 (4-engine classic)
     'MD11', // McDonnell Douglas MD-11
@@ -242,9 +181,8 @@ const RARE_AIRCRAFT = [
     'C17',  // Boeing C-17 Globemaster III (RAAF has 8)
     'C130', // Lockheed C-130 Hercules (RAAF workhorse)
     'C30J', // C-130J Super Hercules
-    'A332', // KC-30A (RAAF tanker - A330 MRTT)
     'E737', // E-7A Wedgetail (RAAF AEW&C)
-    'B737', // P-8A Poseidon (RAAF maritime patrol)
+    'P8',   // P-8A Poseidon (RAAF maritime patrol)
     'F35',  // F-35 Lightning II
     'FA18', // F/A-18 Hornet
     'F18S', // F/A-18F Super Hornet
@@ -264,11 +202,10 @@ const RARE_AIRCRAFT = [
 
     // === UNUSUAL/SPECIAL ===
     'A3ST', // Airbus Beluga/Beluga XL
-    'B748', // Boeing 747-8 (newest 747)
-    'B789', // Boeing 787-9 (most common Dreamliner)
     'HAWK', // BAE Hawk (RAAF trainer)
     'PC21', // Pilatus PC-21 (RAAF trainer)
 ];
+
 
 // Special callsign prefixes for Australian operations
 // These are detected by callsign, not aircraft type
@@ -340,6 +277,7 @@ const state = {
         manualLat: null,
         manualLon: null,
         apiMode: 'free', // 'free' | 'paid' | 'off'
+        clockMode: 'regular', // 'regular' | 'literature'
         // Special alerts settings
         specialAlertRadius: 100,    // km - scan radius for military/emergency/VIP
         specialAlertInterval: 120   // seconds - how often to check (2 min default)
@@ -460,7 +398,17 @@ const elements = {
     satName: document.getElementById('sat-name'),
     satVis: document.getElementById('sat-vis'),
     yearProgressBar: document.getElementById('year-progress-bar'),
-    yearProgressText: document.getElementById('year-progress-text')
+    yearProgressText: document.getElementById('year-progress-text'),
+
+    // Spotify Now Playing
+    nowPlaying: document.getElementById('now-playing'),
+    nowPlayingText: document.getElementById('now-playing-text'),
+
+    // Literature Clock
+    regularClock: document.getElementById('regular-clock'),
+    litClock: document.getElementById('lit-clock'),
+    litQuote: document.getElementById('lit-quote'),
+    litAttribution: document.getElementById('lit-attribution')
 };
 
 // ==========================================
@@ -472,46 +420,134 @@ function updateClock() {
 
     const hours = String(now.getHours()).padStart(2, '0');
     const minutes = String(now.getMinutes()).padStart(2, '0');
+    const currentMinute = `${hours}:${minutes}`;
+
+    // Check if minute actually changed (optimization)
+    const minuteChanged = currentMinute !== state.lastMinute;
 
     // E-Ink Mode: Only update when minutes change (partial update)
-    if (isEinkMode) {
-        const currentMinute = `${hours}:${minutes}`;
-        if (currentMinute === state.lastMinute) {
-            return; // Skip update - nothing changed
+    if (isEinkMode && !minuteChanged) {
+        return; // Skip update - nothing changed
+    }
+
+    state.lastMinute = currentMinute;
+
+    // Handle clock mode (regular vs literature)
+    if (state.settings.clockMode === 'literature' && elements.litClock) {
+        // Literature clock mode
+        if (elements.regularClock) elements.regularClock.classList.add('hidden');
+        elements.litClock.classList.remove('hidden');
+
+        // Only fetch new quote when minute changes
+        if (minuteChanged) {
+            fetchAndDisplayLiteratureQuote(currentMinute);
         }
-        state.lastMinute = currentMinute;
+    } else {
+        // Regular clock mode
+        if (elements.litClock) elements.litClock.classList.add('hidden');
+        if (elements.regularClock) elements.regularClock.classList.remove('hidden');
 
-        // Update clock display (no seconds on E-Ink)
-        elements.time.textContent = currentMinute;
+        // Update digital time
+        if (isEinkMode) {
+            elements.time.textContent = currentMinute;
+        } else {
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            elements.time.textContent = `${hours}:${minutes}:${seconds}`;
+        }
 
-        // Increment partial update counter
+        // Format date
+        const options = { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' };
+        elements.date.textContent = now.toLocaleDateString('en-AU', options);
+    }
+
+    // E-Ink refresh counter (anti-ghosting)
+    if (isEinkMode && minuteChanged) {
         state.partialUpdateCount++;
 
-        // Global Refresh: Reload page every N updates to clear ghosting
         if (state.partialUpdateCount >= EINK_CONFIG.GLOBAL_REFRESH_INTERVAL) {
             console.log(`Global refresh triggered after ${state.partialUpdateCount} partial updates`);
             state.partialUpdateCount = 0;
-            // Full page reload to clear E-Ink ghosting artifacts
             window.location.reload();
             return;
         }
 
         console.log(`Partial update ${state.partialUpdateCount}/${EINK_CONFIG.GLOBAL_REFRESH_INTERVAL}`);
-    } else {
-        // Full mode: Show seconds
-        const seconds = String(now.getSeconds()).padStart(2, '0');
-        elements.time.textContent = `${hours}:${minutes}:${seconds}`;
     }
-
-    // Format date
-    const options = { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' };
-    elements.date.textContent = now.toLocaleDateString('en-AU', options);
 
     // Update Year Progress (client-side)
     updateYearProgress();
 
     // Check Bin Day logic
     checkBinDay();
+}
+
+// Literature clock quote cache
+let litClockCache = { time: null, quote: null };
+
+/**
+ * Fetch and display a literary quote for the given time
+ */
+async function fetchAndDisplayLiteratureQuote(time) {
+    if (!elements.litQuote || !elements.litAttribution) return;
+
+    // Use cached quote if same minute
+    if (litClockCache.time === time && litClockCache.quote) {
+        displayLiteratureQuote(litClockCache.quote);
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/litclock/${time}`);
+
+        if (!response.ok) {
+            // Show fallback on error
+            elements.litQuote.innerHTML = `<span class="lit-highlight">${time}</span>`;
+            elements.litAttribution.textContent = '';
+            return;
+        }
+
+        const quote = await response.json();
+
+        // Cache the quote
+        litClockCache = { time, quote };
+
+        displayLiteratureQuote(quote);
+
+    } catch (error) {
+        console.error('Literature clock fetch error:', error);
+        // Show time as fallback
+        elements.litQuote.innerHTML = `<span class="lit-highlight">${time}</span>`;
+        elements.litAttribution.textContent = '';
+    }
+}
+
+/**
+ * Display a literature quote with highlighted time
+ */
+function displayLiteratureQuote(quote) {
+    if (!elements.litQuote || !elements.litAttribution) return;
+
+    // Build quote HTML with highlighted time
+    const quoteHtml =
+        escapeHtml(quote.quote_before) +
+        `<span class="lit-highlight">${escapeHtml(quote.quote_highlight)}</span>` +
+        escapeHtml(quote.quote_after);
+
+    elements.litQuote.innerHTML = `"${quoteHtml}"`;
+
+    // Build attribution
+    elements.litAttribution.innerHTML =
+        `— <span class="lit-title">${escapeHtml(quote.title)}</span> by <span class="lit-author">${escapeHtml(quote.author)}</span>`;
+}
+
+/**
+ * Escape HTML to prevent XSS
+ */
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 // ==========================================
@@ -533,20 +569,31 @@ async function fetchAndDisplayWeather() {
         const data = await response.json();
         state.weather = data;
 
-        // Update display: Icon, Temp, Rain%, AQI
+        // Update display: Icon, Temp (with feels like), Humidity, Rain, AQI
         if (elements.weatherIcon) {
             elements.weatherIcon.textContent = data.icon || '○';
         }
+
+        // Temperature with optional feels like
         if (elements.weatherTemp) {
-            elements.weatherTemp.textContent = `${data.temp}°C`;
+            if (data.feelsLike && data.feelsLike !== data.temp) {
+                elements.weatherTemp.textContent = `${data.temp}°C (${data.feelsLike}°)`;
+            } else {
+                elements.weatherTemp.textContent = `${data.temp}°C`;
+            }
         }
 
-        // Rain Chance - use text instead of emoji for E-ink
+        // Humidity and Rain display in weather-rain element
         const rainEl = document.getElementById('weather-rain');
-        if (rainEl && data.rainChance !== null && data.rainChance !== undefined) {
-            rainEl.textContent = `R:${data.rainChance}%`;
-        } else if (rainEl) {
-            rainEl.textContent = '';
+        if (rainEl) {
+            const parts = [];
+            if (data.humidity !== null && data.humidity !== undefined) {
+                parts.push(`${data.humidity}%`);
+            }
+            if (data.rainSince9am !== null && data.rainSince9am > 0) {
+                parts.push(`${data.rainSince9am}mm`);
+            }
+            rainEl.textContent = parts.join(' · ');
         }
 
         // AQI Display
@@ -559,7 +606,8 @@ async function fetchAndDisplayWeather() {
             }
         }
 
-        console.log('Weather updated:', data.temp + '°C', data.condition, 'Rain:', data.rainChance, 'AQI:', data.aqi);
+        const source = data.source || 'unknown';
+        console.log(`Weather updated (${source}): ${data.temp}°C, Feels: ${data.feelsLike}°C, Humidity: ${data.humidity}%, Rain: ${data.rainSince9am || 0}mm, AQI: ${data.aqi}`);
 
     } catch (error) {
         console.error('Weather fetch error:', error);
@@ -598,25 +646,21 @@ function checkBinDay() {
         const binColor = isRecycling ? '#FFD700' : '#DC143C'; // Gold or Crimson
         const letter = isRecycling ? 'Y' : 'R';
 
+        // Simplified bin icons - CSS controls sizing via #bin-container svg rule
         elements.binContainer.innerHTML = `
-            <div style="display:flex; gap:4px;">
-               <!-- FOGO (Green) -->
-               <svg width="24" height="32" viewBox="0 0 24 32">
-                 <rect x="2" y="8" width="20" height="22" rx="2" fill="none" stroke="black" stroke-width="2"/>
-                 <line x1="2" y1="8" x2="22" y2="8" stroke="black" stroke-width="2"/>
-                 <path d="M6 8 L8 4 H16 L18 8" fill="none" stroke="black" stroke-width="2"/>
-                 <circle cx="12" cy="18" r="4" fill="black" /> 
-                 <text x="12" y="30" font-size="8" text-anchor="middle" fill="white" font-weight="bold">G</text>
-               </svg>
-               <!-- Variable (Yellow/Red) -->
-               <svg width="24" height="32" viewBox="0 0 24 32">
-                 <rect x="2" y="8" width="20" height="22" rx="2" fill="${binColor}" stroke="black" stroke-width="2"/>
-                 <line x1="2" y1="8" x2="22" y2="8" stroke="black" stroke-width="2"/>
-                 <path d="M6 8 L8 4 H16 L18 8" fill="${binColor}" stroke="black" stroke-width="2"/>
-                 <text x="12" y="24" font-size="10" text-anchor="middle" fill="white" font-weight="bold">${letter}</text>
-               </svg>
-            </div>
-            <div style="font-size:10px; font-weight:bold; margin-top:2px;">BIN NIGHT</div>
+            <!-- FOGO (Green) - Always present -->
+            <svg viewBox="0 0 24 32">
+              <rect x="2" y="8" width="20" height="22" rx="2" fill="none" stroke="black" stroke-width="2"/>
+              <path d="M6 8 L8 4 H16 L18 8" fill="none" stroke="black" stroke-width="2"/>
+              <text x="12" y="22" font-size="10" text-anchor="middle" fill="black" font-weight="bold">G</text>
+            </svg>
+            <!-- Variable (Yellow/Red) -->
+            <svg viewBox="0 0 24 32">
+              <rect x="2" y="8" width="20" height="22" rx="2" fill="${binColor}" stroke="black" stroke-width="2"/>
+              <path d="M6 8 L8 4 H16 L18 8" fill="${binColor}" stroke="black" stroke-width="2"/>
+              <text x="12" y="22" font-size="10" text-anchor="middle" fill="white" font-weight="bold">${letter}</text>
+            </svg>
+            <span class="bin-label">BIN</span>
         `;
 
     } else {
@@ -640,6 +684,36 @@ function updateYearProgress() {
     elements.yearProgressBar.style.width = `${percent}%`;
     if (elements.yearProgressText) {
         elements.yearProgressText.textContent = `${now.getFullYear()}: ${Math.floor(percent)}%`;
+    }
+}
+
+// ==========================================
+// Spotify Now Playing
+// ==========================================
+
+async function fetchAndDisplayNowPlaying() {
+    if (!elements.nowPlaying) return;
+
+    try {
+        const response = await fetch('/api/spotify/now-playing');
+        if (!response.ok) {
+            elements.nowPlaying.classList.add('hidden');
+            return;
+        }
+
+        const data = await response.json();
+
+        if (data.playing && data.track && data.artist) {
+            // Show now playing
+            elements.nowPlaying.classList.remove('hidden');
+            elements.nowPlayingText.textContent = `${data.artist} — ${data.track}`;
+        } else {
+            // Nothing playing
+            elements.nowPlaying.classList.add('hidden');
+        }
+    } catch (e) {
+        // Silently hide on error (Spotify not configured)
+        elements.nowPlaying.classList.add('hidden');
     }
 }
 
@@ -722,6 +796,7 @@ function startEinkUpdates() {
     // Initial fetch
     fetchAndDisplayWeather();
     fetchAndDisplaySatellite();
+    fetchAndDisplayNowPlaying();
     checkBinDay();
     updateYearProgress();
 
@@ -731,10 +806,13 @@ function startEinkUpdates() {
     // Satellite updates every 5 mins
     setInterval(fetchAndDisplaySatellite, 5 * 60 * 1000);
 
+    // Spotify Now Playing updates every 10 seconds
+    setInterval(fetchAndDisplayNowPlaying, 10 * 1000);
+
     // Bin Day check every hour
     setInterval(checkBinDay, 60 * 60 * 1000);
 
-    console.log('E-Ink updates started: Weather (10m), Sat (5m)');
+    console.log('E-Ink updates started: Weather (10m), Sat (5m), Spotify (10s)');
 }
 
 // ==========================================
@@ -2007,6 +2085,19 @@ async function syncSettings() {
             const alertData = await alertRes.json();
             if (alertData.radius) state.settings.specialAlertRadius = alertData.radius;
             if (alertData.interval) state.settings.specialAlertInterval = alertData.interval;
+        } catch (e) { }
+
+        // Clock mode (regular vs literature)
+        try {
+            const clockRes = await fetch('/api/config/clock-mode');
+            const clockData = await clockRes.json();
+            if (clockData.mode && clockData.mode !== state.settings.clockMode) {
+                state.settings.clockMode = clockData.mode;
+                console.log(`Clock mode: ${clockData.mode}`);
+                // Force clock update to apply new mode
+                state.lastMinute = null;
+                updateClock();
+            }
         } catch (e) { }
 
     } catch (e) {

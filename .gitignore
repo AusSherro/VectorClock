@@ -37,3 +37,12 @@ npm-debug.log
 # IDE
 .vscode/
 .idea/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+e-Paper/
+
+# E-Paper preview (simulation mode)
+epaper_preview.png
