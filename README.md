@@ -27,7 +27,7 @@ A smart flight tracker and clock designed for Raspberry Pi with E-Ink displays. 
 - **1,300+ Airline Logos**: Local icons with fallback fetching
 - **Remote Settings**: Configure radius, interval, API mode via web UI
 - **Literature Clock**: 1,400+ literary quotes replace digital time (toggleable)
-- **Spotify Now Playing**: Shows currently playing track from your Spotify account
+- **Spotify Now Playing**: Shows currently playing track with dithered album art
 - **Kindle Frontlight Control**: Toggle backlight and brightness remotely
 
 ## Installation
@@ -166,7 +166,7 @@ Key requirements:
 
 See [CHANGELOG.md](CHANGELOG.md) for version history.
 
-Current version: **v1.6.0** - Native E-Paper Display Driver
+Current version: **v1.8.0** - Album Art & Music Mode
 
 ## License
 

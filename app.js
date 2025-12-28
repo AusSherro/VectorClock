@@ -277,7 +277,11 @@ const state = {
         manualLat: null,
         manualLon: null,
         apiMode: 'free', // 'free' | 'paid' | 'off'
-        clockMode: 'regular', // 'regular' | 'literature'
+        clockMode: 'regular', // 'regular' | 'literature' | 'fuzzy' | 'analog'
+        hideFlights: false,  // Global setting to hide flight info (default: show)
+        // Spotify display settings
+        spotifyDisplayMode: 'thumbnail', // 'thumbnail' | 'music'
+        spotifyShowAlbumArt: true,
         // Special alerts settings
         specialAlertRadius: 100,    // km - scan radius for military/emergency/VIP
         specialAlertInterval: 120   // seconds - how often to check (2 min default)
@@ -399,28 +403,162 @@ const elements = {
     satVis: document.getElementById('sat-vis'),
     yearProgressBar: document.getElementById('year-progress-bar'),
     yearProgressText: document.getElementById('year-progress-text'),
+    miniClock: document.getElementById('mini-clock'),
 
     // Spotify Now Playing
     nowPlaying: document.getElementById('now-playing'),
+    nowPlayingArt: document.getElementById('now-playing-art'),
     nowPlayingText: document.getElementById('now-playing-text'),
+    // Music Mode (large album art)
+    musicMode: document.getElementById('music-mode'),
+    musicModeArt: document.getElementById('music-mode-art'),
+    musicModeTrack: document.getElementById('music-mode-track'),
+    musicModeArtist: document.getElementById('music-mode-artist'),
 
     // Literature Clock
     regularClock: document.getElementById('regular-clock'),
     litClock: document.getElementById('lit-clock'),
     litQuote: document.getElementById('lit-quote'),
-    litAttribution: document.getElementById('lit-attribution')
+    litAttribution: document.getElementById('lit-attribution'),
+
+    // Fuzzy Clock
+    fuzzyClock: document.getElementById('fuzzy-clock'),
+    fuzzyTime: document.getElementById('fuzzy-time'),
+    fuzzyDate: document.getElementById('fuzzy-date'),
+
+    // Analog Clock
+    analogClock: document.getElementById('analog-clock'),
+    analogSvg: document.getElementById('analog-svg'),
+    analogDate: document.getElementById('analog-date'),
+    hourHand: document.getElementById('hour-hand'),
+    minuteHand: document.getElementById('minute-hand')
 };
 
 // ==========================================
 // Clock Functions
 // ==========================================
 
+/**
+ * Hide all clock modes - utility function
+ */
+function hideAllClockModes() {
+    if (elements.regularClock) elements.regularClock.classList.add('hidden');
+    if (elements.litClock) elements.litClock.classList.add('hidden');
+    if (elements.fuzzyClock) elements.fuzzyClock.classList.add('hidden');
+    if (elements.analogClock) elements.analogClock.classList.add('hidden');
+}
+
+/**
+ * Convert time to fuzzy/natural language string
+ */
+function getFuzzyTime(hours, minutes) {
+    const hourNames = [
+        'twelve', 'one', 'two', 'three', 'four', 'five',
+        'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'
+    ];
+
+    // Round to nearest 5 minutes for fuzzy display
+    const roundedMinutes = Math.round(minutes / 5) * 5;
+    let displayHour = hours % 12;
+    let nextHour = (hours + 1) % 12;
+
+    // Handle the rounding pushing us to the next hour
+    let effectiveMinutes = roundedMinutes;
+    if (roundedMinutes === 60) {
+        effectiveMinutes = 0;
+        displayHour = nextHour;
+        nextHour = (nextHour + 1) % 12;
+    }
+
+    const currentHourName = hourNames[displayHour === 0 ? 12 : displayHour];
+    const nextHourName = hourNames[nextHour === 0 ? 12 : nextHour];
+
+    // Generate fuzzy time string
+    if (effectiveMinutes === 0) {
+        if (hours === 0 || hours === 24) return "midnight";
+        if (hours === 12) return "noon";
+        return `${currentHourName} o'clock`;
+    } else if (effectiveMinutes === 5) {
+        return `five past ${currentHourName}`;
+    } else if (effectiveMinutes === 10) {
+        return `ten past ${currentHourName}`;
+    } else if (effectiveMinutes === 15) {
+        return `quarter past ${currentHourName}`;
+    } else if (effectiveMinutes === 20) {
+        return `twenty past ${currentHourName}`;
+    } else if (effectiveMinutes === 25) {
+        return `twenty-five past ${currentHourName}`;
+    } else if (effectiveMinutes === 30) {
+        return `half past ${currentHourName}`;
+    } else if (effectiveMinutes === 35) {
+        return `twenty-five to ${nextHourName}`;
+    } else if (effectiveMinutes === 40) {
+        return `twenty to ${nextHourName}`;
+    } else if (effectiveMinutes === 45) {
+        return `quarter to ${nextHourName}`;
+    } else if (effectiveMinutes === 50) {
+        return `ten to ${nextHourName}`;
+    } else if (effectiveMinutes === 55) {
+        return `five to ${nextHourName}`;
+    }
+
+    return `${currentHourName} o'clock`;
+}
+
+/**
+ * Update analog clock hands position
+ */
+function updateAnalogClock(hours, minutes) {
+    if (!elements.hourHand || !elements.minuteHand) return;
+
+    // Calculate angles
+    const minuteAngle = (minutes / 60) * 360;
+    const hourAngle = ((hours % 12) / 12) * 360 + (minutes / 60) * 30;
+
+    // Apply transforms (rotate around center point 100,100)
+    elements.minuteHand.setAttribute('transform', `rotate(${minuteAngle}, 100, 100)`);
+    elements.hourHand.setAttribute('transform', `rotate(${hourAngle}, 100, 100)`);
+}
+
+/**
+ * Initialize analog clock hour markers (called once on load)
+ */
+function initAnalogClockMarkers() {
+    const markersGroup = document.getElementById('hour-markers');
+    if (!markersGroup || markersGroup.children.length > 0) return;
+
+    for (let i = 0; i < 12; i++) {
+        const angle = (i / 12) * 360 - 90; // Start at 12 o'clock
+        const radian = (angle * Math.PI) / 180;
+
+        // Calculate marker positions (inner and outer points)
+        const innerRadius = 80;
+        const outerRadius = 88;
+        const x1 = 100 + innerRadius * Math.cos(radian);
+        const y1 = 100 + innerRadius * Math.sin(radian);
+        const x2 = 100 + outerRadius * Math.cos(radian);
+        const y2 = 100 + outerRadius * Math.sin(radian);
+
+        // Create marker line
+        const marker = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        marker.setAttribute('x1', x1);
+        marker.setAttribute('y1', y1);
+        marker.setAttribute('x2', x2);
+        marker.setAttribute('y2', y2);
+        marker.setAttribute('stroke', '#000');
+        marker.setAttribute('stroke-width', i % 3 === 0 ? '3' : '1'); // Thicker at 12, 3, 6, 9
+        markersGroup.appendChild(marker);
+    }
+}
+
 function updateClock() {
     const now = new Date();
 
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    const currentMinute = `${hours}:${minutes}`;
+    const hours = now.getHours();
+    const minutes = now.getMinutes();
+    const hoursStr = String(hours).padStart(2, '0');
+    const minutesStr = String(minutes).padStart(2, '0');
+    const currentMinute = `${hoursStr}:${minutesStr}`;
 
     // Check if minute actually changed (optimization)
     const minuteChanged = currentMinute !== state.lastMinute;
@@ -432,32 +570,66 @@ function updateClock() {
 
     state.lastMinute = currentMinute;
 
-    // Handle clock mode (regular vs literature)
-    if (state.settings.clockMode === 'literature' && elements.litClock) {
-        // Literature clock mode
-        if (elements.regularClock) elements.regularClock.classList.add('hidden');
-        elements.litClock.classList.remove('hidden');
+    // Format date (used by all modes except literature)
+    const dateOptions = { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' };
+    const dateStr = now.toLocaleDateString('en-AU', dateOptions);
 
-        // Only fetch new quote when minute changes
-        if (minuteChanged) {
-            fetchAndDisplayLiteratureQuote(currentMinute);
-        }
-    } else {
-        // Regular clock mode
-        if (elements.litClock) elements.litClock.classList.add('hidden');
-        if (elements.regularClock) elements.regularClock.classList.remove('hidden');
+    // Handle clock modes
+    const clockMode = state.settings.clockMode || 'regular';
 
-        // Update digital time
-        if (isEinkMode) {
-            elements.time.textContent = currentMinute;
-        } else {
-            const seconds = String(now.getSeconds()).padStart(2, '0');
-            elements.time.textContent = `${hours}:${minutes}:${seconds}`;
-        }
+    // Hide all clock modes first
+    hideAllClockModes();
 
-        // Format date
-        const options = { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' };
-        elements.date.textContent = now.toLocaleDateString('en-AU', options);
+    switch (clockMode) {
+        case 'literature':
+            if (elements.litClock) {
+                elements.litClock.classList.remove('hidden');
+                if (minuteChanged) {
+                    fetchAndDisplayLiteratureQuote(currentMinute);
+                }
+            }
+            break;
+
+        case 'fuzzy':
+            if (elements.fuzzyClock) {
+                elements.fuzzyClock.classList.remove('hidden');
+                if (elements.fuzzyTime) {
+                    elements.fuzzyTime.textContent = getFuzzyTime(hours, minutes);
+                }
+                if (elements.fuzzyDate) {
+                    elements.fuzzyDate.textContent = dateStr;
+                }
+            }
+            break;
+
+        case 'analog':
+            if (elements.analogClock) {
+                elements.analogClock.classList.remove('hidden');
+                initAnalogClockMarkers(); // Ensure markers are drawn
+                updateAnalogClock(hours, minutes);
+                if (elements.analogDate) {
+                    elements.analogDate.textContent = dateStr;
+                }
+            }
+            break;
+
+        case 'regular':
+        default:
+            if (elements.regularClock) {
+                elements.regularClock.classList.remove('hidden');
+
+                // Update digital time
+                if (isEinkMode) {
+                    elements.time.textContent = currentMinute;
+                } else {
+                    const seconds = String(now.getSeconds()).padStart(2, '0');
+                    elements.time.textContent = `${hoursStr}:${minutesStr}:${seconds}`;
+                }
+
+                // Format date
+                elements.date.textContent = dateStr;
+            }
+            break;
     }
 
     // E-Ink refresh counter (anti-ghosting)
@@ -692,29 +864,154 @@ function updateYearProgress() {
 // ==========================================
 
 async function fetchAndDisplayNowPlaying() {
-    if (!elements.nowPlaying) return;
+    // Fetch spotify display settings first
+    try {
+        const settingsRes = await fetch('/api/config/spotify-display');
+        if (settingsRes.ok) {
+            const settingsData = await settingsRes.json();
+            state.settings.spotifyDisplayMode = settingsData.displayMode || 'thumbnail';
+            state.settings.spotifyShowAlbumArt = settingsData.showAlbumArt !== false;
+        }
+    } catch (e) {
+        // Use defaults
+    }
+
+    // Fetch global hide flights setting
+    try {
+        const hideFlightsRes = await fetch('/api/config/hide-flights');
+        if (hideFlightsRes.ok) {
+            const hideFlightsData = await hideFlightsRes.json();
+            state.settings.hideFlights = hideFlightsData.hideFlights === true;
+        }
+    } catch (e) {
+        // Use defaults
+    }
 
     try {
         const response = await fetch('/api/spotify/now-playing');
         if (!response.ok) {
-            elements.nowPlaying.classList.add('hidden');
+            hideNowPlaying();
             return;
         }
 
         const data = await response.json();
 
         if (data.playing && data.track && data.artist) {
-            // Show now playing
-            elements.nowPlaying.classList.remove('hidden');
-            elements.nowPlayingText.textContent = `${data.artist} — ${data.track}`;
+            const showArt = state.settings.spotifyShowAlbumArt && data.albumArt;
+
+            // MUSIC MODE: Large album art replaces clock
+            if (state.settings.spotifyDisplayMode === 'music' && showArt) {
+                // Hide regular clock/lit clock
+                if (elements.regularClock) elements.regularClock.classList.add('hidden');
+                if (elements.litClock) elements.litClock.classList.add('hidden');
+
+                // Show music mode
+                if (elements.musicMode) {
+                    elements.musicMode.classList.remove('hidden');
+                    if (elements.musicModeArt) elements.musicModeArt.src = data.albumArt;
+                    if (elements.musicModeTrack) elements.musicModeTrack.textContent = data.track;
+                    if (elements.musicModeArtist) elements.musicModeArtist.textContent = data.artist;
+                }
+
+                // Hide thumbnail now-playing bar
+                if (elements.nowPlaying) elements.nowPlaying.classList.add('hidden');
+
+                // Show mini clock in header
+                if (elements.miniClock) {
+                    const now = new Date();
+                    const hours = String(now.getHours()).padStart(2, '0');
+                    const minutes = String(now.getMinutes()).padStart(2, '0');
+                    elements.miniClock.textContent = `${hours}:${minutes}`;
+                    elements.miniClock.classList.remove('hidden');
+                }
+
+                // Conditionally hide/show top flight info based on global setting
+                if (state.settings.hideFlights) {
+                    if (elements.topInfo) elements.topInfo.classList.add('hidden');
+                }
+
+            } else {
+                // THUMBNAIL MODE: Small art in now-playing bar
+                // Restore clock visibility (based on clock mode)
+                if (elements.musicMode) elements.musicMode.classList.add('hidden');
+                if (elements.miniClock) elements.miniClock.classList.add('hidden');
+
+                hideAllClockModes();
+                const clockMode = state.settings.clockMode || 'regular';
+                switch (clockMode) {
+                    case 'literature':
+                        if (elements.litClock) elements.litClock.classList.remove('hidden');
+                        break;
+                    case 'fuzzy':
+                        if (elements.fuzzyClock) elements.fuzzyClock.classList.remove('hidden');
+                        break;
+                    case 'analog':
+                        if (elements.analogClock) elements.analogClock.classList.remove('hidden');
+                        break;
+                    case 'regular':
+                    default:
+                        if (elements.regularClock) elements.regularClock.classList.remove('hidden');
+                        break;
+                }
+
+                // Show now-playing bar with thumbnail
+                if (elements.nowPlaying) {
+                    elements.nowPlaying.classList.remove('hidden');
+                    if (elements.nowPlayingText) {
+                        elements.nowPlayingText.textContent = `${data.artist} — ${data.track}`;
+                    }
+
+                    // Display album art thumbnail if available
+                    if (elements.nowPlayingArt && showArt) {
+                        elements.nowPlayingArt.src = data.albumArt;
+                        elements.nowPlayingArt.classList.remove('hidden');
+                    } else if (elements.nowPlayingArt) {
+                        elements.nowPlayingArt.classList.add('hidden');
+                    }
+                }
+            }
         } else {
-            // Nothing playing
-            elements.nowPlaying.classList.add('hidden');
+            // Nothing playing - hide everything and restore clock
+            hideNowPlaying();
         }
     } catch (e) {
         // Silently hide on error (Spotify not configured)
-        elements.nowPlaying.classList.add('hidden');
+        hideNowPlaying();
     }
+}
+
+// Helper to hide now playing and restore normal display
+function hideNowPlaying() {
+    // Hide music mode
+    if (elements.musicMode) elements.musicMode.classList.add('hidden');
+
+    // Hide now playing bar
+    if (elements.nowPlaying) elements.nowPlaying.classList.add('hidden');
+    if (elements.nowPlayingArt) elements.nowPlayingArt.classList.add('hidden');
+
+    // Hide mini clock
+    if (elements.miniClock) elements.miniClock.classList.add('hidden');
+
+    // Restore clock visibility (based on clock mode)
+    hideAllClockModes();
+    const clockMode = state.settings.clockMode || 'regular';
+    switch (clockMode) {
+        case 'literature':
+            if (elements.litClock) elements.litClock.classList.remove('hidden');
+            break;
+        case 'fuzzy':
+            if (elements.fuzzyClock) elements.fuzzyClock.classList.remove('hidden');
+            break;
+        case 'analog':
+            if (elements.analogClock) elements.analogClock.classList.remove('hidden');
+            break;
+        case 'regular':
+        default:
+            if (elements.regularClock) elements.regularClock.classList.remove('hidden');
+            break;
+    }
+
+    // Note: Flight info visibility is handled by displayFlight() separately
 }
 
 async function fetchAndDisplaySatellite() {
@@ -921,19 +1218,7 @@ async function recordFlightSighting(flight, routeInfo = null) {
     }
 }
 
-// ==========================================
-// Static Route Lookup - DISABLED
-// Flight numbers don't follow predictable patterns by prefix
-// Always use API for accurate route info
-// ==========================================
 
-/**
- * lookupStaticRoute is disabled - API is more accurate
- * @returns {null} - Always returns null so API is used
- */
-function lookupStaticRoute(callsign) {
-    return null; // Always use API for accurate routes
-}
 
 // Route cache stored in localStorage with 24-hour expiry
 const routeCache = {
@@ -982,12 +1267,7 @@ async function fetchFlightRoute(callsign) {
         return null;
     }
 
-    // Check static routes for common Australian flights (no API call needed)
-    const staticRoute = lookupStaticRoute(callsign);
-    if (staticRoute) {
-        routeCache.set(callsign, staticRoute);
-        return staticRoute;
-    }
+
 
     // Clean callsign (remove spaces)
     const cleanCallsign = callsign.trim().replace(/\s+/g, '');
@@ -1473,10 +1753,8 @@ async function displayCurrentFlight() {
         elements.airlineLogo.onerror = () => { elements.airlineLogo.style.display = 'none'; };
     }
 
-    // Hide year progress bar when flights are showing
-    if (elements.yearProgressBar && elements.yearProgressBar.parentElement) {
-        elements.yearProgressBar.parentElement.classList.add('hidden');
-    }
+    // Year progress bar stays visible now
+
 
     // ==========================================
     // SQUAWK CODE DISPLAY

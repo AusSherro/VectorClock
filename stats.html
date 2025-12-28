@@ -7,6 +7,16 @@
     <title>Flight Stats Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --primary: #00d4ff;
+            --secondary: #00ff88;
+            --bg-dark: #0a0a12;
+            --bg-card: rgba(255, 255, 255, 0.03);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-main: #eee;
+            --text-muted: #888;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -15,8 +25,8 @@
 
         body {
             font-family: 'Inter', -apple-system, sans-serif;
-            background: linear-gradient(135deg, #0a0a12 0%, #12121f 50%, #0d1829 100%);
-            color: #eee;
+            background: linear-gradient(135deg, var(--bg-dark) 0%, #12121f 50%, #0d1829 100%);
+            color: var(--text-main);
             min-height: 100vh;
         }
 
@@ -24,7 +34,7 @@
         .nav {
             background: rgba(0, 0, 0, 0.5);
             backdrop-filter: blur(20px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            border-bottom: 1px solid var(--border-color);
             padding: 12px 30px;
             position: sticky;
             top: 0;
@@ -37,10 +47,9 @@
         .nav-brand {
             font-size: 1.2rem;
             font-weight: 700;
-            background: linear-gradient(135deg, #00d4ff, #00ff88);
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            background-clip: text;
         }
 
         .nav-links {
@@ -65,7 +74,7 @@
 
         .nav-links a.active {
             background: rgba(0, 212, 255, 0.15);
-            color: #00d4ff;
+            color: var(--primary);
         }
 
         .container {
@@ -74,12 +83,16 @@
             padding: 30px;
         }
 
-        h1 {
+        .page-header {
+            margin-bottom: 40px;
             text-align: center;
-            margin-bottom: 30px;
-            font-size: 2.2rem;
+        }
+
+        .page-header h1 {
+            font-size: 2rem;
             font-weight: 700;
-            background: linear-gradient(135deg, #00d4ff, #00ff88);
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #fff, #aaa);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
@@ -93,8 +106,8 @@
         }
 
         .stat-card {
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid rgba(255, 255, 255, 0.06);
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
             border-radius: 16px;
             padding: 24px;
             backdrop-filter: blur(10px);
@@ -108,7 +121,7 @@
 
         .stat-card h2 {
             font-size: 0.75rem;
-            color: #666;
+            color: var(--text-muted);
             margin-bottom: 8px;
             text-transform: uppercase;
             letter-spacing: 1.5px;
@@ -118,7 +131,7 @@
         .stat-value {
             font-size: 2.5rem;
             font-weight: 700;
-            color: #00d4ff;
+            color: var(--primary);
             line-height: 1;
         }
 
@@ -152,7 +165,7 @@
             left: 0;
             right: 0;
             height: 3px;
-            background: linear-gradient(90deg, #00d4ff, #00ff88);
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
         }
 
         .feature-card.gold {
@@ -170,11 +183,14 @@
 
         .feature-title {
             font-size: 0.85rem;
-            color: #888;
+            color: var(--text-muted);
             margin-bottom: 12px;
             display: flex;
             align-items: center;
             gap: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
         }
 
         .feature-callsign {
@@ -182,11 +198,12 @@
             font-weight: 700;
             color: #fff;
             margin-bottom: 8px;
+            font-family: 'JetBrains Mono', monospace;
         }
 
         .feature-value {
-            font-size: 1.4rem;
-            color: #00d4ff;
+            font-size: 1.2rem;
+            color: var(--primary);
             margin-bottom: 8px;
         }
 
@@ -208,9 +225,9 @@
 
         .tab {
             padding: 8px 16px;
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            color: #888;
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--text-muted);
             cursor: pointer;
             border-radius: 8px;
             font-family: inherit;
@@ -221,29 +238,42 @@
 
         .tab:hover {
             color: #aaa;
-            border-color: rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.05);
         }
 
         .tab.active {
             background: rgba(0, 212, 255, 0.15);
-            border-color: rgba(0, 212, 255, 0.5);
-            color: #00d4ff;
+            border-color: rgba(0, 212, 255, 0.2);
+            color: var(--primary);
         }
 
         .tab-content {
             display: none;
+            animation: fadeIn 0.3s ease;
         }
 
         .tab-content.active {
             display: block;
         }
 
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
         /* Tables */
         .table-container {
-            background: rgba(255, 255, 255, 0.02);
+            background: var(--bg-card);
             border-radius: 16px;
             overflow: hidden;
-            border: 1px solid rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--border-color);
         }
 
         table {
@@ -253,17 +283,17 @@
 
         th,
         td {
-            padding: 14px 18px;
+            padding: 16px 20px;
             text-align: left;
             border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         }
 
         th {
-            background: rgba(0, 212, 255, 0.05);
-            color: #00d4ff;
+            background: rgba(0, 0, 0, 0.2);
+            color: var(--primary);
             font-weight: 600;
             text-transform: uppercase;
-            font-size: 0.7rem;
+            font-size: 0.75rem;
             letter-spacing: 1px;
             cursor: pointer;
             user-select: none;
@@ -274,27 +304,22 @@
             background: rgba(0, 212, 255, 0.1);
         }
 
-        th.sorted-asc::after {
-            content: ' ▲';
-            font-size: 0.6rem;
+        tr:last-child td {
+            border-bottom: none;
         }
 
-        th.sorted-desc::after {
-            content: ' ▼';
-            font-size: 0.6rem;
-        }
-
-        tr:hover {
+        tr:hover td {
             background: rgba(255, 255, 255, 0.02);
         }
 
         .callsign {
+            font-family: 'JetBrains Mono', monospace;
             font-weight: 600;
             color: #fff;
         }
 
         .count-badge {
-            background: linear-gradient(135deg, #00d4ff, #0099cc);
+            background: linear-gradient(135deg, var(--primary), #0099cc);
             color: #000;
             padding: 4px 10px;
             border-radius: 20px;
@@ -310,101 +335,87 @@
             font-size: 0.7rem;
             font-weight: 600;
             margin-left: 8px;
+            display: inline-block;
         }
 
-        /* Section Headers */
-        .section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 16px;
-        }
-
-        .section-title {
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: #888;
-        }
-
-        /* Search/Filter */
+        /* Search input */
         .filter-bar {
-            display: flex;
-            gap: 12px;
             margin-bottom: 20px;
-            flex-wrap: wrap;
         }
 
         .filter-input {
-            background: rgba(0, 0, 0, 0.4);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            padding: 10px 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 12px 20px;
             color: #fff;
             font-family: inherit;
-            font-size: 0.85rem;
-            min-width: 200px;
-            transition: border-color 0.2s, box-shadow 0.2s;
+            font-size: 0.95rem;
+            width: 100%;
+            max-width: 400px;
+            transition: all 0.2s;
         }
 
         .filter-input:focus {
             outline: none;
-            border-color: #00d4ff;
-            box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.15);
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(0, 212, 255, 0.1);
         }
 
-        .filter-input::placeholder {
-            color: #444;
-        }
-
-        /* Chart placeholder */
+        /* Chart */
         .chart-container {
-            background: rgba(255, 255, 255, 0.02);
+            background: var(--bg-card);
             border-radius: 16px;
-            padding: 24px;
-            margin-bottom: 30px;
-            border: 1px solid rgba(255, 255, 255, 0.06);
+            padding: 30px;
+            margin-bottom: 40px;
+            border: 1px solid var(--border-color);
         }
 
         .chart-title {
-            font-size: 0.9rem;
-            color: #888;
-            margin-bottom: 20px;
+            font-size: 1rem;
+            color: var(--text-muted);
+            margin-bottom: 24px;
             font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
         .hourly-chart {
             display: flex;
             align-items: flex-end;
-            gap: 4px;
-            height: 120px;
+            gap: 6px;
+            height: 160px;
+            padding-bottom: 20px;
         }
 
         .hour-bar {
             flex: 1;
-            background: linear-gradient(to top, #00d4ff, #00ff88);
+            background: linear-gradient(to top, var(--primary), var(--secondary));
             border-radius: 4px 4px 0 0;
             min-height: 4px;
             position: relative;
             transition: opacity 0.2s;
+            opacity: 0.6;
         }
 
         .hour-bar:hover {
-            opacity: 0.8;
+            opacity: 1;
         }
 
         .hour-bar::after {
             content: attr(data-label);
             position: absolute;
-            bottom: -20px;
+            bottom: -24px;
             left: 50%;
             transform: translateX(-50%);
-            font-size: 0.6rem;
-            color: #555;
+            font-size: 0.7rem;
+            color: #666;
+            font-family: 'JetBrains Mono', monospace;
         }
 
         /* Buttons */
         .btn {
-            background: linear-gradient(135deg, #00d4ff, #0099cc);
+            background: linear-gradient(135deg, var(--primary), #0099cc);
             color: #000;
             border: none;
             padding: 12px 24px;
@@ -413,16 +424,12 @@
             font-weight: 600;
             cursor: pointer;
             transition: transform 0.2s, box-shadow 0.2s;
-            font-size: 0.85rem;
+            font-size: 0.9rem;
         }
 
         .btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0, 212, 255, 0.3);
-        }
-
-        .btn:active {
-            transform: translateY(0);
         }
 
         .btn-danger {
@@ -432,17 +439,16 @@
 
         .action-buttons {
             display: flex;
-            gap: 12px;
-            margin-top: 30px;
+            gap: 16px;
+            margin-top: 40px;
             justify-content: center;
         }
 
-        /* Footer */
         .last-updated {
             text-align: center;
             color: #444;
             font-size: 0.8rem;
-            margin-top: 40px;
+            margin-top: 60px;
             padding-bottom: 20px;
         }
 
@@ -463,21 +469,30 @@
             }
 
             .stat-value {
-                font-size: 1.8rem;
+                font-size: 2rem;
             }
 
             th,
             td {
-                padding: 10px 12px;
+                padding: 12px;
                 font-size: 0.85rem;
+            }
+
+            .tabs {
+                width: 100%;
+                overflow-x: auto;
+            }
+
+            .tab {
+                white-space: nowrap;
             }
         }
 
-        /* Empty state */
         .empty-state {
             text-align: center;
-            padding: 40px;
-            color: #555;
+            padding: 60px;
+            color: var(--text-muted);
+            font-style: italic;
         }
     </style>
 </head>

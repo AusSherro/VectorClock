@@ -30,6 +30,7 @@
                         <span id="weather-temp">--°C</span>
                         <span id="weather-rain" class="weather-stat"></span>
                         <span id="weather-aqi" class="aqi-badge"></span>
+                        <span id="mini-clock" class="hidden"></span>
                     </div>
                     <div id="bin-container" class="hidden">
                         <!-- Bin Icon will be injected here -->
@@ -65,6 +66,41 @@
                         <div id="lit-quote"></div>
                         <div id="lit-attribution"></div>
                     </div>
+
+                    <!-- Fuzzy Clock (hidden by default) -->
+                    <div id="fuzzy-clock" class="hidden">
+                        <div id="fuzzy-time"></div>
+                        <div id="fuzzy-date"></div>
+                    </div>
+
+                    <!-- Analog Clock (hidden by default) -->
+                    <div id="analog-clock" class="hidden">
+                        <svg id="analog-svg" viewBox="0 0 200 200">
+                            <!-- Clock face -->
+                            <circle cx="100" cy="100" r="95" fill="none" stroke="#000" stroke-width="3" />
+                            <!-- Hour markers -->
+                            <g id="hour-markers"></g>
+                            <!-- Clock hands -->
+                            <line id="hour-hand" x1="100" y1="100" x2="100" y2="55" stroke="#000" stroke-width="5"
+                                stroke-linecap="round" />
+                            <line id="minute-hand" x1="100" y1="100" x2="100" y2="30" stroke="#000" stroke-width="3"
+                                stroke-linecap="round" />
+                            <!-- Center dot -->
+                            <circle cx="100" cy="100" r="5" fill="#000" />
+                        </svg>
+                        <div id="analog-date"></div>
+                    </div>
+
+                    <!-- Music Mode (hidden by default - replaces clock when active) -->
+                    <div id="music-mode" class="hidden">
+                        <div id="music-mode-content">
+                            <img id="music-mode-art" src="" alt="Album Art">
+                            <div id="music-mode-info">
+                                <div id="music-mode-track"></div>
+                                <div id="music-mode-artist"></div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Bottom: Route (BELOW clock) - shown when available -->
@@ -82,6 +118,7 @@
 
                 <!-- Spotify Now Playing (shown when music is playing) -->
                 <div id="now-playing" class="hidden">
+                    <img id="now-playing-art" src="" alt="" class="hidden">
                     <span id="now-playing-icon">♪</span>
                     <span id="now-playing-text"></span>
                 </div>

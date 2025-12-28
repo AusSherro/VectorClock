@@ -1,5 +1,35 @@
 # Changelog
 
+## [1.8.0] - 2025-12-27 - Album Art & Music Mode
+
+### Added
+- **Spotify Album Art Dithering**:
+  - Three dithering algorithms: Floyd-Steinberg, Atkinson, and Ordered (Bayer)
+  - Configurable in Settings → Spotify section
+  - Optimized for e-ink displays with high-contrast monochrome output
+- **Music Mode** (replaces clock when music is playing):
+  - Large album art with track and artist info
+  - Mini clock displayed in header bar
+  - Optional: Hide flight callsign/aircraft info when music plays
+  - Route (O&D) remains visible at bottom
+- **Thumbnail Mode**:
+  - Small album art next to track info in now-playing bar
+  - Non-intrusive display alongside normal clock
+- **New Settings**:
+  - Dither Algorithm selector (Floyd/Atkinson/Ordered)
+  - Display Mode selector (Thumbnail/Music Mode)
+  - Show Album Art toggle
+  - Hide Flights in Music Mode toggle
+
+### Changed
+- Album art uses CSS grayscale + high-contrast filter for web/Kindle display
+- E-paper Python driver implements true pixel-level dithering algorithms
+
+### Fixed
+- Flight info now shows correctly in music mode when "Hide Flights" is OFF
+
+---
+
 ## [1.7.0] - 2025-12-27 - Literature Clock & Spotify Integration
 
 ### Added

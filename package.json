@@ -1,6 +1,6 @@
 {
   "name": "vector-clock",
-  "version": "1.6.0",
+  "version": "1.8.0",
   "description": "VectorClock - E-Ink Flight Tracker with AirLabs, Rare Aircraft Detection, and Stats Dashboard",
   "main": "server.js",
   "scripts": {

@@ -16,9 +16,6 @@ Deploy VectorClock to your Raspberry Pi with these steps.
 
 ### Data Files
 - `aircraft.db` - Local aircraft database (46MB, 616k records)
-- `airlines.json` - ICAO to airline slug mappings
-- `csv_to_db.py` - Database converter (only if regenerating DB)
-- `aircraft-database-complete-2025-08.csv` - Source CSV (only if regenerating)
 
 ### Assets (Optional but recommended)
 - `assets/` - Local airline logo SVGs
@@ -50,7 +47,7 @@ These are created automatically:
 - `trigger.txt` - E-Ink update trigger
 - `screenshots/` - Rendered frames
 - `logos/` - Cached airline logos
-- `flight_stats.json` - Flight sighting history
+- `flight_stats.db` - Flight sighting history (SQLite)
 
 ## Memory Considerations (Pi Zero 2 W)
 

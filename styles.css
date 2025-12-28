@@ -618,6 +618,21 @@ body {
     content: none;
 }
 
+/* Mini Clock (shown in music mode) */
+#mini-clock {
+    font-family: var(--font-mono);
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-left: 8px;
+}
+
+/* Add dot separator before mini clock when visible */
+#mini-clock::before {
+    content: "·";
+    margin-right: 12px;
+    color: #888888;
+}
+
 /* Bin Icon */
 #bin-container {
     display: flex;
@@ -715,6 +730,88 @@ body {
     max-width: 90%;
 }
 
+/* Album Art - E-Ink Dithered Style */
+#now-playing-art {
+    width: 40px;
+    height: 40px;
+    object-fit: cover;
+    flex-shrink: 0;
+    /* High contrast grayscale for e-ink dithering effect */
+    filter: grayscale(100%) contrast(200%);
+    image-rendering: pixelated;
+}
+
+/* ==========================================
+   Music Mode - Large Album Art Layout
+   ========================================== */
+#music-mode {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    width: 100%;
+}
+
+#music-mode-content {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-xl);
+    padding: var(--spacing-md) 0;
+}
+
+#music-mode-art {
+    width: 140px;
+    min-width: 140px;
+    height: 140px;
+    min-height: 140px;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    /* High contrast dithered effect for e-ink */
+    filter: grayscale(100%) contrast(200%);
+    image-rendering: pixelated;
+    border: 2px solid var(--color-black);
+    flex-shrink: 0;
+}
+
+#music-mode-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    text-align: left;
+    max-width: 250px;
+    gap: 2px;
+}
+
+#music-mode-track {
+    font-family: var(--font-mono);
+    font-size: 1.4rem;
+    font-weight: 700;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.2;
+}
+
+#music-mode-artist {
+    font-family: var(--font-mono);
+    font-size: 0.95rem;
+    color: var(--color-gray-dark);
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* When music mode is active and flights are hidden, center everything */
+body.music-mode-active #top-info.hidden+#clock-center #music-mode {
+    padding: var(--spacing-lg) 0;
+}
+
 /* ==========================================
    Literature Clock
    ========================================== */
@@ -758,6 +855,58 @@ body {
 
 #lit-attribution .lit-author {
     font-weight: 600;
+}
+
+/* ==========================================
+   Fuzzy Clock
+   ========================================== */
+
+#fuzzy-clock {
+    text-align: center;
+    padding: 10px 20px;
+}
+
+#fuzzy-time {
+    font-family: var(--font-sans);
+    font-size: 3.5rem;
+    font-weight: 700;
+    line-height: 1.2;
+    text-transform: lowercase;
+    letter-spacing: -1px;
+}
+
+#fuzzy-date {
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+    color: var(--color-gray-dark);
+    margin-top: 8px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+/* ==========================================
+   Analog Clock
+   ========================================== */
+
+#analog-clock {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+#analog-svg {
+    width: 180px;
+    height: 180px;
+}
+
+#analog-date {
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+    color: var(--color-gray-dark);
+    margin-top: 8px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
 }
 
 /* Utility Classes */

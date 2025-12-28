@@ -288,11 +288,6 @@ async function fetchNowPlaying() {
 }
 
 
-// lookupStaticRoute - DISABLED (API is more accurate)
-function lookupStaticRoute(callsign) {
-    return null;
-}
-
 // Serve static files from current directory
 app.use(express.static(__dirname));
 
@@ -304,7 +299,7 @@ app.use(express.json());
 // ==========================================
 
 const STATS_DB_PATH = path.join(__dirname, 'flight_stats.db');
-const STATS_JSON_PATH = path.join(__dirname, 'flight_stats.json');
+
 
 let statsDB = null;
 
@@ -392,8 +387,7 @@ function initStatsDB() {
 
         console.log('✓ Stats database initialized (flight_stats.db)');
 
-        // Migrate from JSON if exists and DB is empty
-        migrateFromJSON();
+
 
         return true;
     } catch (e) {
@@ -402,92 +396,6 @@ function initStatsDB() {
     }
 }
 
-/**
- * Migrate data from JSON to SQLite (one-time)
- */
-function migrateFromJSON() {
-    if (!statsDB) return;
-
-    // Check if we have any flights already
-    const count = statsDB.prepare('SELECT COUNT(*) as c FROM flights').get();
-    if (count.c > 0) return; // Already has data
-
-    // Check for JSON file
-    if (!fs.existsSync(STATS_JSON_PATH)) return;
-
-    try {
-        console.log('📦 Migrating stats from JSON to SQLite...');
-        const data = JSON.parse(fs.readFileSync(STATS_JSON_PATH, 'utf8'));
-
-        // Migrate flights
-        const insertFlight = statsDB.prepare(`
-            INSERT OR REPLACE INTO flights (callsign, count, first_seen, last_seen, min_distance, max_altitude, carrier, route, aircraft, typecode, country, rare, special, special_name)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `);
-
-        const flightTx = statsDB.transaction((flights) => {
-            for (const [callsign, info] of Object.entries(flights)) {
-                insertFlight.run(
-                    callsign,
-                    info.count || 0,
-                    info.firstSeen || null,
-                    info.lastSeen || null,
-                    info.minDistance === Infinity ? null : (info.minDistance || null),
-                    info.maxAltitude || null,
-                    info.carrier || null,
-                    info.route || null,
-                    info.aircraft || null,
-                    info.typecode || null,
-                    info.country || null,
-                    info.rare ? 1 : 0,
-                    info.special || null,
-                    info.specialName || null
-                );
-            }
-        });
-
-        if (data.flights) {
-            flightTx(data.flights);
-            console.log(`   ✓ Migrated ${Object.keys(data.flights).length} flights`);
-        }
-
-        // Migrate models
-        const insertModel = statsDB.prepare(`
-            INSERT OR REPLACE INTO models (typecode, name, first_seen, last_seen, count)
-            VALUES (?, ?, ?, ?, ?)
-        `);
-
-        const modelTx = statsDB.transaction((models) => {
-            for (const [typecode, info] of Object.entries(models)) {
-                insertModel.run(
-                    typecode,
-                    info.name || null,
-                    info.firstSeen || null,
-                    info.lastSeen || null,
-                    info.count || 0
-                );
-            }
-        });
-
-        if (data.models) {
-            modelTx(data.models);
-            console.log(`   ✓ Migrated ${Object.keys(data.models).length} models`);
-        }
-
-        // Store total sightings
-        if (data.totalSightings) {
-            stmts.setMeta.run('totalSightings', String(data.totalSightings));
-        }
-
-        // Backup JSON file
-        fs.renameSync(STATS_JSON_PATH, STATS_JSON_PATH + '.backup');
-        console.log('   ✓ JSON backed up to flight_stats.json.backup');
-        console.log('✅ Migration complete!');
-
-    } catch (e) {
-        console.error('Migration error:', e.message);
-    }
-}
 
 // Initialize stats DB on load
 initStatsDB();
@@ -800,6 +708,37 @@ app.get('/api/satellite', (req, res) => {
     res.json(satelliteCache || {});
 });
 
+// System Vitality Endpoint
+app.get('/api/system', (req, res) => {
+    const os = require('os');
+    const { exec } = require('child_process');
+
+    const stats = {
+        uptime: os.uptime(),
+        load: os.loadavg(),
+        mem: {
+            total: os.totalmem(),
+            free: os.freemem(),
+            used: os.totalmem() - os.freemem()
+        },
+        platform: os.platform() + ' ' + os.release(),
+        temp: null
+    };
+
+    // Try to get CPU temp (raspberry pi specific)
+    exec('vcgencmd measure_temp', (error, stdout, stderr) => {
+        if (!error && stdout) {
+            // Output format: "temp=46.2'C"
+            const match = stdout.match(/temp=([0-9.]+)/);
+            if (match && match[1]) {
+                stats.temp = parseFloat(match[1]);
+            }
+        }
+        res.json(stats);
+    });
+});
+
+
 // ==========================================
 // Spotify API Endpoints
 // ==========================================
@@ -927,6 +866,70 @@ app.post('/api/spotify/disconnect', (req, res) => {
 
     console.log('✓ Spotify disconnected');
     res.json({ success: true, message: 'Spotify disconnected' });
+});
+
+// ==========================================
+// Spotify Display Settings (Album Art Dithering)
+// ==========================================
+
+// Get Spotify display settings
+app.get('/api/config/spotify-display', (req, res) => {
+    res.json({
+        displayMode: userConfig.spotifyDisplayMode || 'thumbnail',  // 'thumbnail' or 'music'
+        ditherAlgorithm: userConfig.spotifyDitherAlgorithm || 'floyd',  // 'floyd', 'atkinson', 'ordered'
+        showAlbumArt: userConfig.spotifyShowAlbumArt !== false,  // default true
+        hideFlightsInMusicMode: userConfig.spotifyHideFlightsInMusicMode === true  // default false (show flights)
+    });
+});
+
+// Update Spotify display settings
+app.post('/api/config/spotify-display', (req, res) => {
+    const { displayMode, ditherAlgorithm, showAlbumArt, hideFlightsInMusicMode } = req.body;
+
+    if (displayMode && ['thumbnail', 'music'].includes(displayMode)) {
+        userConfig.spotifyDisplayMode = displayMode;
+    }
+    if (ditherAlgorithm && ['floyd', 'atkinson', 'ordered'].includes(ditherAlgorithm)) {
+        userConfig.spotifyDitherAlgorithm = ditherAlgorithm;
+    }
+    if (typeof showAlbumArt === 'boolean') {
+        userConfig.spotifyShowAlbumArt = showAlbumArt;
+    }
+    if (typeof hideFlightsInMusicMode === 'boolean') {
+        userConfig.spotifyHideFlightsInMusicMode = hideFlightsInMusicMode;
+    }
+
+    saveConfig();
+
+    console.log(`✓ Spotify display settings saved: mode=${userConfig.spotifyDisplayMode}, dither=${userConfig.spotifyDitherAlgorithm}, show=${userConfig.spotifyShowAlbumArt}, hideFlights=${userConfig.spotifyHideFlightsInMusicMode}`);
+
+    res.json({
+        success: true,
+        displayMode: userConfig.spotifyDisplayMode || 'thumbnail',
+        ditherAlgorithm: userConfig.spotifyDitherAlgorithm || 'floyd',
+        showAlbumArt: userConfig.spotifyShowAlbumArt !== false,
+        hideFlightsInMusicMode: userConfig.spotifyHideFlightsInMusicMode === true
+    });
+});
+
+// Global Hide Flights setting (independent of music mode)
+let HIDE_FLIGHTS = userConfig.hideFlights === true;
+
+app.get('/api/config/hide-flights', (req, res) => {
+    res.json({ hideFlights: HIDE_FLIGHTS });
+});
+
+app.post('/api/config/hide-flights', (req, res) => {
+    const { hideFlights } = req.body;
+    if (typeof hideFlights === 'boolean') {
+        HIDE_FLIGHTS = hideFlights;
+        userConfig.hideFlights = hideFlights;
+        saveConfig();
+        console.log(`Hide flights updated: ${HIDE_FLIGHTS}`);
+        res.json({ success: true, hideFlights: HIDE_FLIGHTS });
+    } else {
+        res.status(400).json({ error: 'Invalid value' });
+    }
 });
 
 // ==========================================
@@ -1718,14 +1721,14 @@ app.get('/api/config/clock-mode', (req, res) => {
 
 app.post('/api/config/clock-mode', (req, res) => {
     const { mode } = req.body;
-    if (['regular', 'literature'].includes(mode)) {
+    if (['regular', 'literature', 'fuzzy'].includes(mode)) {
         CLOCK_MODE = mode;
         userConfig.clockMode = mode;
         saveConfig();
         console.log(`Clock mode updated: ${CLOCK_MODE}`);
         res.json({ success: true, mode: CLOCK_MODE });
     } else {
-        res.status(400).json({ error: 'Invalid mode. Use: regular or literature' });
+        res.status(400).json({ error: 'Invalid mode. Use: regular, literature, or fuzzy' });
     }
 });
 
@@ -2148,19 +2151,6 @@ app.get('/api/flight-info/:callsign', async (req, res) => {
         return res.json({ source: 'disabled', origin: 'Unknown', destination: 'Unknown' });
     }
 
-    // Check static routes first (no API call needed)
-    const staticRoute = lookupStaticRoute(callsign);
-    if (staticRoute) {
-        const info = {
-            origin: staticRoute.departure,
-            destination: staticRoute.arrival,
-            airline: staticRoute.airline,
-            source: 'static'
-        };
-        FLIGHT_CACHE[callsign] = { data: info, expiry: Date.now() + FLIGHT_CACHE_MS };
-        console.log(`✓ Static route match: ${callsign}`);
-        return res.json(info);
-    }
 
     let flightData = null;
     let fetchError = null;

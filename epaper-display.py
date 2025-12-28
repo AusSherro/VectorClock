@@ -118,6 +118,211 @@ class FontManager:
 
 
 # ═══════════════════════════════════════════════════════════════
+# Album Art Manager (Dithering)
+# ═══════════════════════════════════════════════════════════════
+
+# Bayer matrix for ordered dithering
+BAYER_MATRIX_4x4 = [
+    [0,  8,  2, 10],
+    [12, 4, 14,  6],
+    [3, 11,  1,  9],
+    [15, 7, 13,  5]
+]
+
+class AlbumArtManager:
+    """
+    Manages album art fetching, caching, and dithering for e-ink display.
+    
+    Supported dithering algorithms:
+    - floyd: Floyd-Steinberg (smooth, organic patterns)
+    - atkinson: Atkinson (Mac Classic style, higher contrast)
+    - ordered: Ordered/Bayer (geometric screentone patterns)
+    """
+    
+    def __init__(self):
+        self.cached_url: Optional[str] = None
+        self.cached_art: Optional[Image.Image] = None
+        self.cached_dithered: Dict[str, Image.Image] = {}  # algorithm -> dithered image
+        
+        # Display settings (fetched from server)
+        self.display_mode = 'thumbnail'  # 'thumbnail' or 'music'
+        self.dither_algorithm = 'floyd'  # 'floyd', 'atkinson', 'ordered'
+        self.show_album_art = True
+        
+        # Thumbnail size for "now playing" bar
+        self.thumbnail_size = 50
+        # Large size for "music mode"
+        self.music_mode_size = 180
+    
+    def fetch_settings(self, server_url: str) -> None:
+        """Fetch album art display settings from server."""
+        if not REQUESTS_AVAILABLE:
+            return
+        try:
+            response = requests.get(f"{server_url}/api/config/spotify-display", timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                self.display_mode = data.get('displayMode', 'thumbnail')
+                self.dither_algorithm = data.get('ditherAlgorithm', 'floyd')
+                self.show_album_art = data.get('showAlbumArt', True)
+                log.info(f"Album art settings: mode={self.display_mode}, dither={self.dither_algorithm}")
+        except Exception as e:
+            log.debug(f"Could not fetch album art settings: {e}")
+    
+    def get_dithered_art(self, url: str, size: int) -> Optional[Image.Image]:
+        """
+        Fetch album art and apply dithering.
+        Returns cached version if URL unchanged.
+        """
+        if not url:
+            log.debug("Album art: No URL provided")
+            return None
+        
+        if not self.show_album_art:
+            log.debug("Album art: Disabled in settings")
+            return None
+        
+        if not REQUESTS_AVAILABLE or not PIL_AVAILABLE:
+            log.debug("Album art: Missing requests or PIL")
+            return None
+        
+        # Check cache
+        cache_key = f"{self.dither_algorithm}_{size}"
+        if url == self.cached_url and cache_key in self.cached_dithered:
+            log.debug(f"Album art: Using cached {cache_key}")
+            return self.cached_dithered[cache_key]
+        
+        try:
+            # Fetch new album art if URL changed
+            if url != self.cached_url:
+                log.info(f"Fetching album art: {url[:60]}...")
+                response = requests.get(url, timeout=10)
+                if response.status_code != 200:
+                    log.warning(f"Album art fetch failed: HTTP {response.status_code}")
+                    return None
+                
+                from io import BytesIO
+                self.cached_art = Image.open(BytesIO(response.content))
+                self.cached_url = url
+                self.cached_dithered = {}  # Clear dither cache
+                log.info(f"Album art loaded: {self.cached_art.size} {self.cached_art.mode}")
+            
+            if not self.cached_art:
+                log.debug("Album art: No cached art available")
+                return None
+            
+            # Resize to target size
+            art = self.cached_art.copy()
+            art = art.resize((size, size), Image.Resampling.LANCZOS)
+            
+            # Convert to grayscale
+            art = art.convert('L')
+            
+            # Apply dithering
+            dithered = self._apply_dithering(art, self.dither_algorithm)
+            
+            # Cache the result
+            self.cached_dithered[cache_key] = dithered
+            log.info(f"Album art dithered ({self.dither_algorithm}): {size}x{size}")
+            
+            return dithered
+            
+        except Exception as e:
+            log.warning(f"Album art fetch/dither error: {e}")
+            import traceback
+            log.debug(traceback.format_exc())
+            return None
+    
+    def _apply_dithering(self, image: Image.Image, algorithm: str) -> Image.Image:
+        """Apply the specified dithering algorithm to a grayscale image."""
+        if algorithm == 'atkinson':
+            return self._dither_atkinson(image)
+        elif algorithm == 'ordered':
+            return self._dither_ordered(image)
+        else:  # floyd (default)
+            return self._dither_floyd_steinberg(image)
+    
+    def _dither_floyd_steinberg(self, image: Image.Image) -> Image.Image:
+        """
+        Floyd-Steinberg dithering.
+        Distributes error to neighboring pixels for smooth gradients.
+        """
+        img = image.copy()
+        pixels = img.load()
+        width, height = img.size
+        
+        for y in range(height):
+            for x in range(width):
+                old_pixel = pixels[x, y]
+                new_pixel = 255 if old_pixel > 127 else 0
+                pixels[x, y] = new_pixel
+                error = old_pixel - new_pixel
+                
+                # Distribute error to neighbors
+                if x + 1 < width:
+                    pixels[x + 1, y] = max(0, min(255, int(pixels[x + 1, y] + error * 7 / 16)))
+                if y + 1 < height:
+                    if x > 0:
+                        pixels[x - 1, y + 1] = max(0, min(255, int(pixels[x - 1, y + 1] + error * 3 / 16)))
+                    pixels[x, y + 1] = max(0, min(255, int(pixels[x, y + 1] + error * 5 / 16)))
+                    if x + 1 < width:
+                        pixels[x + 1, y + 1] = max(0, min(255, int(pixels[x + 1, y + 1] + error * 1 / 16)))
+        
+        return img.convert('1')
+    
+    def _dither_atkinson(self, image: Image.Image) -> Image.Image:
+        """
+        Atkinson dithering (Bill Atkinson, Apple).
+        Higher contrast, more stylized - only distributes 6/8 of error.
+        """
+        img = image.copy()
+        pixels = img.load()
+        width, height = img.size
+        
+        for y in range(height):
+            for x in range(width):
+                old_pixel = pixels[x, y]
+                new_pixel = 255 if old_pixel > 127 else 0
+                pixels[x, y] = new_pixel
+                error = (old_pixel - new_pixel) // 8  # Only 6/8 distributed
+                
+                # Atkinson error distribution pattern
+                if x + 1 < width:
+                    pixels[x + 1, y] = max(0, min(255, pixels[x + 1, y] + error))
+                if x + 2 < width:
+                    pixels[x + 2, y] = max(0, min(255, pixels[x + 2, y] + error))
+                if y + 1 < height:
+                    if x > 0:
+                        pixels[x - 1, y + 1] = max(0, min(255, pixels[x - 1, y + 1] + error))
+                    pixels[x, y + 1] = max(0, min(255, pixels[x, y + 1] + error))
+                    if x + 1 < width:
+                        pixels[x + 1, y + 1] = max(0, min(255, pixels[x + 1, y + 1] + error))
+                if y + 2 < height:
+                    pixels[x, y + 2] = max(0, min(255, pixels[x, y + 2] + error))
+        
+        return img.convert('1')
+    
+    def _dither_ordered(self, image: Image.Image) -> Image.Image:
+        """
+        Ordered dithering using 4x4 Bayer matrix.
+        Creates regular geometric patterns (screentone aesthetic).
+        """
+        img = image.copy()
+        pixels = img.load()
+        width, height = img.size
+        
+        # Normalize Bayer matrix to 0-255 range
+        threshold_map = [[((BAYER_MATRIX_4x4[y][x] + 1) / 17) * 255 for x in range(4)] for y in range(4)]
+        
+        for y in range(height):
+            for x in range(width):
+                threshold = threshold_map[y % 4][x % 4]
+                pixels[x, y] = 255 if pixels[x, y] > threshold else 0
+        
+        return img.convert('1')
+
+
+# ═══════════════════════════════════════════════════════════════
 # Data Fetcher
 # ═══════════════════════════════════════════════════════════════
 
@@ -245,9 +450,11 @@ REGIONS = {
     'clock': Region(200, 160, 400, 160),      # Center - large clock
     'date': Region(250, 320, 300, 40),        # Below clock - date
     'weather': Region(0, 0, 250, 100),        # Top left - weather
-    'flight': Region(0, 380, 800, 70),        # Bottom - flight info (reduced height)
-    'now_playing': Region(0, 450, 800, 30),   # Very bottom - now playing
+    'flight': Region(0, 365, 800, 55),        # Bottom - flight info (adjusted for art)
+    'now_playing': Region(0, 420, 800, 60),   # Very bottom - now playing with album art
     'status': Region(550, 0, 250, 60),        # Top right - status
+    'music_mode': Region(0, 100, 800, 300),   # Center area for music mode
+    'clock_mini': Region(700, 10, 100, 40),   # Top right - mini clock for music mode
     'full': Region(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT),
 }
 
@@ -261,12 +468,14 @@ class DisplayRenderer:
     
     def __init__(self):
         self.fonts = FontManager()
+        self.album_art = AlbumArtManager()
         self.epd = None
         self.image = None
         self.draw = None
         self.last_full_refresh = 0
         self.current_minute = -1
         self.current_flight = None
+        self.music_mode_active = False
         
         self._init_display()
     
@@ -433,7 +642,7 @@ class DisplayRenderer:
                 y += 22
     
     def _draw_now_playing(self, now_playing: Optional[Dict]):
-        """Draw Spotify now playing info."""
+        """Draw Spotify now playing info with optional album art thumbnail."""
         region = REGIONS['now_playing']
         
         # Clear region
@@ -442,23 +651,106 @@ class DisplayRenderer:
         if not now_playing or not now_playing.get('playing'):
             return
         
-        font = self.fonts.get(14)
-        
         artist = now_playing.get('artist', '')
         track = now_playing.get('track', '')
+        album_art_url = now_playing.get('albumArt') or now_playing.get('albumArtSmall')
         
+        # Debug logging
+        log.debug(f"Now playing: {artist} - {track}")
+        log.debug(f"Album art URL: {album_art_url[:50] if album_art_url else 'None'}...")
+        log.debug(f"Album art settings: mode={self.album_art.display_mode}, show={self.album_art.show_album_art}")
+        
+        # Try to render album art thumbnail
+        art_width = 0
+        art_x = 10
+        art_size = self.album_art.thumbnail_size
+        
+        # Render album art only in thumbnail mode (music mode is handled separately)
+        if album_art_url and self.album_art.show_album_art:
+            if self.album_art.display_mode == 'thumbnail':
+                dithered = self.album_art.get_dithered_art(album_art_url, art_size)
+                if dithered:
+                    # Center vertically in region
+                    art_y = region.y + (region.height - art_size) // 2
+                    self.image.paste(dithered, (art_x, art_y))
+                    art_width = art_size + 15  # Add padding after art
+                    log.info(f"Album art rendered at ({art_x}, {art_y})")
+                else:
+                    log.warning("Album art dithering returned None")
+        
+        # Draw track info
         if artist and track:
-            text = f"♪ {artist} — {track}"
+            font_track = self.fonts.get(16)
+            font_artist = self.fonts.get(12)
+            
             # Truncate if too long
-            if len(text) > 80:
-                text = text[:77] + "..."
+            max_len = 50 if art_width > 0 else 60
+            if len(track) > max_len:
+                track = track[:max_len - 3] + "..."
+            if len(artist) > max_len:
+                artist = artist[:max_len - 3] + "..."
             
-            # Center the text
-            bbox = self.draw.textbbox((0, 0), text, font=font)
-            text_width = bbox[2] - bbox[0]
-            x = (DISPLAY_WIDTH - text_width) // 2
+            text_x = art_x + art_width
             
-            self.draw.text((x, region.y + 5), text, font=font, fill=0)
+            # Track name (larger)
+            self.draw.text((text_x, region.y + 8), f"♪ {track}", font=font_track, fill=0)
+            # Artist name (smaller, below)
+            self.draw.text((text_x, region.y + 30), artist, font=font_artist, fill=0)
+    
+    def _draw_music_mode(self, now_playing: Optional[Dict], now: datetime):
+        """
+        Draw full music mode with large album art replacing clock/date.
+        Mini clock shown in corner.
+        """
+        if not now_playing or not now_playing.get('playing'):
+            return False
+        
+        album_art_url = now_playing.get('albumArt') or now_playing.get('albumArtSmall')
+        if not album_art_url:
+            return False
+        
+        art_size = self.album_art.music_mode_size
+        dithered = self.album_art.get_dithered_art(album_art_url, art_size)
+        if not dithered:
+            return False
+        
+        region = REGIONS['music_mode']
+        
+        # Draw large centered album art
+        art_x = (DISPLAY_WIDTH - art_size) // 2
+        art_y = region.y + 10
+        self.image.paste(dithered, (art_x, art_y))
+        
+        # Draw track and artist info below art
+        artist = now_playing.get('artist', '')
+        track = now_playing.get('track', '')
+        album = now_playing.get('album', '')
+        
+        info_y = art_y + art_size + 15
+        
+        # Track name (large)
+        font_track = self.fonts.get(24)
+        if len(track) > 35:
+            track = track[:32] + "..."
+        bbox = self.draw.textbbox((0, 0), track, font=font_track)
+        text_width = bbox[2] - bbox[0]
+        self.draw.text(((DISPLAY_WIDTH - text_width) // 2, info_y), track, font=font_track, fill=0)
+        
+        # Artist name
+        font_artist = self.fonts.get(18)
+        if len(artist) > 40:
+            artist = artist[:37] + "..."
+        bbox = self.draw.textbbox((0, 0), artist, font=font_artist)
+        text_width = bbox[2] - bbox[0]
+        self.draw.text(((DISPLAY_WIDTH - text_width) // 2, info_y + 30), artist, font=font_artist, fill=0)
+        
+        # Draw mini clock in corner
+        mini_region = REGIONS['clock_mini']
+        time_str = now.strftime('%H:%M')
+        font_mini = self.fonts.get(20)
+        self.draw.text((mini_region.x, mini_region.y), time_str, font=font_mini, fill=0)
+        
+        return True
     
     def render_full(self, weather: Optional[Dict], flight: Optional[Dict], 
                     special_alerts: Dict = None, now_playing: Optional[Dict] = None):
@@ -471,23 +763,38 @@ class DisplayRenderer:
         # Clear entire display
         self.draw.rectangle([0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT], fill=255)
         
-        # Draw all elements
-        self._draw_clock(now)
-        self._draw_date(now)
-        self._draw_weather(weather)
-        self._draw_flight(flight)
-        self._draw_status(special_alerts or {})
-        self._draw_now_playing(now_playing)
+        # Check for music mode
+        music_mode_rendered = False
+        if (self.album_art.display_mode == 'music' and 
+            now_playing and now_playing.get('playing') and 
+            self.album_art.show_album_art):
+            music_mode_rendered = self._draw_music_mode(now_playing, now)
+        
+        if music_mode_rendered:
+            # In music mode, still show weather and flight info
+            self._draw_weather(weather)
+            self._draw_flight(flight)
+            self._draw_status(special_alerts or {})
+            self.music_mode_active = True
+        else:
+            # Normal layout
+            self._draw_clock(now)
+            self._draw_date(now)
+            self._draw_weather(weather)
+            self._draw_flight(flight)
+            self._draw_status(special_alerts or {})
+            self._draw_now_playing(now_playing)
+            self.music_mode_active = False
         
         # Push to display
         if self.epd:
             self.epd.display(self.epd.getbuffer(self.image))
             self.last_full_refresh = time.time()
-            log.info("Full refresh complete")
+            log.info("Full refresh complete" + (" (music mode)" if music_mode_rendered else ""))
         else:
             # Simulation mode - save to file
             self.image.save('epaper_preview.png')
-            log.info("Preview saved to epaper_preview.png")
+            log.info("Preview saved to epaper_preview.png" + (" (music mode)" if music_mode_rendered else ""))
         
         self.current_minute = now.minute
         self.current_flight = flight
@@ -627,6 +934,9 @@ class VectorClockDisplay:
         log.info(f"Server: {SERVER_URL}")
         log.info(f"Display: {DISPLAY_WIDTH}x{DISPLAY_HEIGHT}")
         log.info("=" * 60)
+        
+        # Fetch album art display settings
+        self.renderer.album_art.fetch_settings(SERVER_URL)
         
         # Initial data fetch
         self.fetcher.get_location()
